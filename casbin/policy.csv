@@ -1,0 +1,7 @@
+p, piwriw, data1, read
+p, joohwan, data2, write
+p, admin, data3, read
+p, admin, data3, write
+p, developer, data3, read
+g, piwriw2, admin
+g, joohwan2, developer
