@@ -12,7 +12,7 @@ import (
 go get fyne.io/fyne/v2
 go get -u github.com/flopp/go-findfont 支持中文
 
-	go install fyne.io/fyne/v2/cmd/fyne@latest
+go install fyne.io/fyne/v2/cmd/fyne@latest
 */
 func main1() {
 	myApp := app.New()
