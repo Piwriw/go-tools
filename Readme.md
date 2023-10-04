@@ -15,3 +15,6 @@
 | carbon       | 时间操作库                                                   | https://github.com/golang-module/carbon |
 | fyne         | Go GUI库                                                     | https://github.com/fyne-io/fyne         |
 | go-redis     | Go Redis库                                                   | https://github.com/redis/go-redis       |
+| go-captcha   | Go 验证码库                                                  | https://github.com/wenlng/go-captcha    |
+
+​	
