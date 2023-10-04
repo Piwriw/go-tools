@@ -1,4 +1,9 @@
 # 利用fyne 实现的SGU的业绩点计算
+## 环境准备
+web URL：https://jmeubank.github.io/tdm-gcc/download/
+
+下载来链接（64位操作系统，windows）：https://github.com/jmeubank/tdm-gcc/releases/download/v10.3.0-tdm64-2/tdm64-gcc-10.3.0-2.exe
+需要安装gcc （windows需要，mac自带）
 ## 功能介绍
 1. 支持fyne 中文支持
 2. 通过excelize 实现支持表格操作，读取学生成绩表 ｜ 输出学生绩点折线图
