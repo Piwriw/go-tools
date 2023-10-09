@@ -7,6 +7,7 @@ require (
 	github.com/casbin/casbin/v2 v2.77.2
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/golang-module/carbon/v2 v2.2.8
+	github.com/google/martian v2.1.0+incompatible
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/jessevdk/go-flags v1.5.0
