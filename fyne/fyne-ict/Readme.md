@@ -5,8 +5,10 @@ web URL：https://jmeubank.github.io/tdm-gcc/download/
 下载来链接（64位操作系统，windows）：https://github.com/jmeubank/tdm-gcc/releases/download/v10.3.0-tdm64-2/tdm64-gcc-10.3.0-2.exe
 需要安装gcc （windows需要，mac自带）
 ## 功能介绍
-1. 支持fyne 中文支持
-2. 通过excelize 实现支持表格操作，读取学生成绩表 ｜ 输出学生绩点折线图
+1. 支持fyne 中文支持（Done）
+2. 读取某一个文件夹下所有的表格（一个学生一个表格），输出每一个学生的每个学年的绩点平均值（通过excelize 实现支持表格操作）和大学四年的绩点（如果是有四年的就输出，没有就输出目前获取的比例）
+   - 需要考虑：学生补考、重修的问题（参照SGU绩点计算规则处理）
+3. 记得需要支持GUI的界面，界面也需要变动
 
 ## fyne不支持中文解决方案
 1. 下载对应的支持中文的字体
