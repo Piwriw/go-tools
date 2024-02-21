@@ -17,5 +17,7 @@
 | go-redis     | Go Redis库                                                   | https://github.com/redis/go-redis       |
 | go-captcha   | Go 验证码库                                                  | https://github.com/wenlng/go-captcha    |
 | Go-sh        | Go shell库                                                   | https://github.com/codeskyblue/go-sh    |
+| Go-Jwt       | Go Jwt 库                                                    | https://github.com/golang-jwt/jwt       |
+| Go-ansible   | Go-ansible                                                   | https://github.com/apenella/go-ansible  |
 
 ​	
