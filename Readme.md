@@ -20,5 +20,6 @@
 | Go-Jwt        | Go Jwt 库                                                    | https://github.com/golang-jwt/jwt           |
 | Go-ansible    | Go-ansible                                                   | https://github.com/apenella/go-ansible      |
 | Go-prometheus | Go-prometheus                                                | https://github.com/prometheus/client_golang |
-
-​	
+| Go-testify    | Go测试增强库                                                 | https://github.com/stretchr/testify         |
+| Go-quic       | Go的Quic库                                                   | https://github.com/quic-go/quic-go          |
+|               |                                                              |                                             |
