@@ -21,5 +21,5 @@
 | Go-ansible    | Go-ansible                                                   | https://github.com/apenella/go-ansible      |
 | Go-prometheus | Go-prometheus                                                | https://github.com/prometheus/client_golang |
 | Go-testify    | Go测试增强库                                                 | https://github.com/stretchr/testify         |
-| Go-quic       | Go的Quic库                                                   | https://github.com/quic-go/quic-go          |
-|               |                                                              |                                             |
+| Go-quic       | Go的Quic库                                                   | https://github.com/quic-go/quic-g           |
+| Go-retry      | Go的HTTP重试工具                                             | https://github.com/avast/retry-go           |
