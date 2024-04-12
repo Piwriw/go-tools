@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,26 +14,15 @@ import (
 	"path/filepath"
 )
 
-func main() {
-	var kubeconfig *string
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+func GetCRD(client *dynamic.DynamicClient) (*unstructured.UnstructuredList, error) {
+	resource, _ := client.Resource(schema.GroupVersionResource{"node.nodedeploy", "v1", "nodedeploys"}).List(context.TODO(), metav1.ListOptions{})
+	if resource == nil {
+		return nil, errors.New("Not find")
 	}
-	flag.Parse()
-
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err)
-	}
-	// 实例化对象
-	dynamicClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		panic(err)
-	}
-
-	// 使用scheme的包带入gvr
+	return resource, nil
+}
+func CreateCRD(dynamicClient *dynamic.DynamicClient) {
+	//使用scheme的包带入gvr
 	deploymentRes := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
 	deploymentName := "ss"
 	replicas := 1
@@ -82,5 +72,29 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(create)
+
+}
+func main() {
+	var kubeconfig *string
+	if home := homedir.HomeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	//kubeconfig = "C:\\Users\\huan\\.kube\\conf"
+
+	flag.Parse()
+
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		panic(err)
+	}
+	// 实例化对象
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		panic(err)
+	}
+	crd, _ := GetCRD(dynamicClient)
+	fmt.Println(crd)
 
 }
