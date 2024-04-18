@@ -71,3 +71,16 @@ func Test_retryCount(t *testing.T) {
 		t.Error(err)
 	}
 }
+func TestGetTryCount(t *testing.T) {
+	err := retry.Do(
+		func() error {
+			return errors.New("Err")
+		},
+		retry.Delay(1*time.Second),
+		retry.Attempts(10),
+		retry.DelayType(retry.FixedDelay),
+	)
+	if err != nil {
+		t.Error(err.Error())
+	}
+}

@@ -70,7 +70,7 @@ func TestReadio(t *testing.T) {
  PipeReader 和 PipeWriter 类型
  管道读法
 */
-// PipeWrite Write
+// PipeWrite WriteR
 func PipeWrite(write *io.PipeWriter) {
 	data := []byte("sending pipe")
 	for i := 0; i < 2; i++ {
