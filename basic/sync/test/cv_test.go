@@ -14,10 +14,10 @@ import (
 // consumer Goroutine 会从通道 ch 中接收数字，并计算它们的平方，并将平方结果发送到另一个通道 result 中。
 // 主函数会从 result 通道中接收结果，并打印出来。
 func producer(ch chan int) {
-	rand.Seed(time.Now().UnixNano()) // 设置随机数种子
-
-	randomNumber := rand.Intn(10) + 1 // 生成 1 到 10 之间的随机数
 	for i := 0; i < 6; i++ {
+		// 设计随机种子
+		rand.NewSource(time.Now().UnixNano())
+		randomNumber := rand.Intn(10) + 1 // 生成 1 到 10 之间的随机数
 		ch <- randomNumber
 	}
 	close(ch)
