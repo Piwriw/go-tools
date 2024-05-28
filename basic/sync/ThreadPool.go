@@ -1,11 +1,6 @@
-package test
+package main
 
-import (
-	"fmt"
-	"sync"
-	"testing"
-	"time"
-)
+import "sync"
 
 /*
 题目：编写一个并发程序，实现一个简单的线程池。
@@ -39,7 +34,6 @@ func NewThreadPool(size int) *ThreadPool {
 
 	return pool
 }
-
 func (pool *ThreadPool) startWorkers() {
 	for i := 0; i < pool.size; i++ {
 		pool.wg.Add(1)
@@ -51,49 +45,9 @@ func (pool *ThreadPool) startWorkers() {
 					result := task(idx)
 					pool.results <- result
 				case <-pool.shutdown:
-					fmt.Printf("Go:%d is Dead", idx)
 					return
 				}
 			}
 		}(i + 1)
 	}
-}
-
-func (pool *ThreadPool) Shutdown() {
-	fmt.Println("Shutdown")
-	pool.wg.Wait()    // 等待所有任务完成
-	close(pool.tasks) // 关闭任务通道，表示没有更多任务
-	close(pool.shutdown)
-	close(pool.results)
-}
-
-func (pool *ThreadPool) Submit(task Task) {
-	pool.tasks <- task
-}
-
-func TestPV(t *testing.T) {
-	pool := NewThreadPool(3)
-
-	go func() {
-		for {
-			// 等待任务完成并打印结果
-			select {
-			case result, ok := <-pool.results:
-				fmt.Printf("Result:%d，ok:%v\n", result, ok)
-				if !ok {
-					pool.shutdown <- struct{}{}
-					return
-				}
-			}
-		}
-	}()
-
-	// 提交任务
-	for i := 0; i < 10; i++ {
-		pool.Submit(func(n int) int {
-			return n * n
-		})
-	}
-	go pool.Shutdown()
-	time.Sleep(10 * time.Second)
 }
