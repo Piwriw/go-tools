@@ -23,13 +23,20 @@ func GenSql(db *gorm.DB) {
 		OutPath: "./dao",
 	})
 	g.UseDB(db)
-	// Apply the interface to existing `User` and generated `Employee`
-	g.ApplyInterface(func(Querier) {}, g.GenerateModel("emp"))
+	list, err := db.Migrator().GetTables()
+	if err != nil {
+		panic(err)
+	}
+	// export all tables Models
+	for _, s := range list {
+		model := g.GenerateModel(s)
+		g.ApplyInterface(func(Querier) {}, model)
+	}
 
 	g.Execute()
 }
 func main() {
-	db, err := gorm.Open(postgres.Open("postgres://postgres:abc123@192.168.113.1:55433/postgres"), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open("postgres://postgres:abc123@xxx.xxx.xxx.xx:55433/postgres"), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
