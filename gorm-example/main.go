@@ -1,27 +1,20 @@
 package main
 
 import (
-	"context"
-	"github.com/piwriw/gorm/dao"
+	"fmt"
 	"github.com/piwriw/gorm/model"
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"math/rand"
 )
 
 func main() {
-	db, err := gorm.Open(postgres.Open("postgres://postgres:abc123@47.107.113.111:55433/postgres"), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(fmt.Sprintf("host=%s port=%s user=%s  password=%s dbname=%s",
+		"10.0.0.192", "3306", "root", "123456", "joohwan_dev")))
 	if err != nil {
 		panic(err)
 	}
-	for i := 0; i < 1000; i++ {
-		err = dao.Use(db).Emp.WithContext(context.Background()).Create(&model.Emp{
-			ID:       int32(3 + i),
-			Name:     "joohwan",
-			Addresss: "hangzhou",
-			Age:      rand.Int31(),
-		})
-	}
+	var ms []model.HestiaInstanceModel
+	db.Select("name", "age").Find(&ms)
 
 	//if err != nil {
 	//	panic(err)
