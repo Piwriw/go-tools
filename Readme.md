@@ -24,3 +24,4 @@
 | Go-quic       | Go的Quic库                                                   | https://github.com/quic-go/quic-g           |
 | Go-retry      | Go的HTTP重试工具                                             | https://github.com/avast/retry-go           |
 | snowflake     | Go的分布式ID生成器，基于雪花算法                             | https://github.com/bwmarrin/snowflake       |
+| ant           | Go的协程池                                                   | https://github.com/panjf2000/ants           |
