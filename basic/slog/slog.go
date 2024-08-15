@@ -7,9 +7,11 @@ import (
 
 func main() {
 	name := "sss"
+	intarr := []int{1, 2, 3, 4}
+	slog.Info("LOG int arr", slog.Any("intarr", intarr))
 	slog.Info("This is info log")
 	slog.Warn("This is warning log")
-	slog.Error("This is error log")
+	slog.Error("This is error log", "err", "x", "ss", "xx")
 
 	// Group 日志
 	g1 := slog.Group("g1", slog.String("module", "authentication"), slog.String("method", "login"))
