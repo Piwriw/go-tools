@@ -9,7 +9,8 @@ import (
 )
 
 func main() {
-	InitLogger("app.log", "warn", 1, 1, 1, true)
+	logger := InitLogger("app.log", "warn", 1, 1, 1, true)
+	defer logger.Close()
 	slog.Info("LOG int arr", slog.Any("intarr", "sss"))
 	slog.Info("This is info log")
 	slog.Warn("This is warning log")
