@@ -8,13 +8,15 @@ import (
 )
 
 func main() {
-	db, err := gorm.Open(mysql.Open(fmt.Sprintf("host=%s port=%s user=%s  password=%s dbname=%s",
-		"10.0.0.192", "3306", "root", "123456", "joohwan_dev")))
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", "root", "123456", "10.0.0.197", 3308, "joohwan_dev")
+	db, err := gorm.Open(mysql.Open(dsn))
 	if err != nil {
 		panic(err)
 	}
 	var ms []model.HestiaInstanceModel
 	db.Select("name", "age").Find(&ms)
+
+	db.Where("name = ?", "jinzhu").Session(&gorm.Session{NewDB: true})
 
 	//if err != nil {
 	//	panic(err)
