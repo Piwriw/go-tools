@@ -1,6 +1,6 @@
 module github.piwriw.gp-deepcopy
 
-go 1.22.0
+go 1.22
 
 require (
 	github.com/huandu/go-clone v1.7.2 // indirect

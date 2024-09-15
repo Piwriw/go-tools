@@ -2,12 +2,11 @@ package utils
 
 import (
 	"fmt"
+	"github.com/huandu/go-clone"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/huandu/go-clone"
 )
 
 type Person struct {
@@ -23,34 +22,28 @@ func fixpeople(people []Person) {
 }
 func TestCopy(t *testing.T) {
 	peoples := make([]Person, 0)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1000000; i++ {
 		peoples = append(peoples, Person{
 			Name:    "joo" + strconv.Itoa(i),
 			Age:     i,
 			Address: []string{"address" + strconv.Itoa(i), strconv.Itoa(i)},
 		})
 	}
-	clone.Slowly(peoples)
-
-	//peoplesCopy := make([]Person, len(peoples))
-	//copy(peoplesCopy, peoples)
-	//peoplesDeepCopy := Copy(peoplesCopy).([]Person)
-
 	wg.Add(3)
 	go func([]Person) {
-		fmt.Println(startDeepCOpy(peoples))
+		startDeepCOpy(peoples)
 		wg.Done()
 	}(peoples)
 	go func([]Person) {
-		fmt.Println(startClone(peoples))
+		startClone(peoples)
 		wg.Done()
 	}(peoples)
 	go func() {
-		fmt.Println(startCloneSlow(peoples))
+		startCloneSlow(peoples)
 		wg.Done()
 	}()
 
-	t.Log(peoples)
+	//t.Log(peoples)
 	wg.Wait()
 }
 
@@ -76,6 +69,6 @@ func startDeepCOpy(peoplesCopy []Person) []Person {
 
 	people := Copy(peoplesCopy).([]Person)
 	fixpeople(people)
-	fmt.Println("startDeepCOpy Time", time.Since(now).Seconds())
+	fmt.Println("startDeepCopy Time", time.Since(now).Seconds())
 	return people
 }
