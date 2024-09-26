@@ -28,7 +28,7 @@ func TestQueryRange(t *testing.T) {
 
 func TestValidted(t *testing.T) {
 	// 要校验的 PromQL 查询
-	query := "count by(instance, name,ip)(db_lock{W_WAITER=~\".+\"})"
+	query := "111"
 	client, err := NewPrometheusClient("http://10.0.0.195:9002")
 	if err != nil {
 		t.Fatal(err)
@@ -40,6 +40,11 @@ func TestValidted(t *testing.T) {
 }
 
 func TestName(t *testing.T) {
+	expr, err := parser.ParseExpr("db{}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(expr)
 
 }
 
@@ -50,5 +55,4 @@ func TestPrettify(t *testing.T) {
 	}
 	t.Log(parser.Prettify(expr))
 
-	parser.ParseMetric(s.Labels)
 }

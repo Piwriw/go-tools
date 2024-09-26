@@ -86,10 +86,11 @@ func (p *PrometheusClient) Validate(querySQL string) error {
 	}
 	return nil
 }
+
 func (p *PrometheusClient) Prettify(querySQL string) (string, error) {
 	expr, err := parser.ParseExpr(querySQL)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	return parser.Prettify(expr), nil
 }
