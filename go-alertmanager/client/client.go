@@ -108,7 +108,9 @@ func (am *AlertManagerClient) Timeout(timeout time.Duration) *AlertManagerClient
 		filter:    am.clientOpt.filter,
 		timeout:   am.clientOpt.timeout,
 	}
-	newClientOpt.timeout = timeout
+	if timeout <= 0 {
+		am.err = errors.New("timeout must be greater than zero")
+	}
 	return &AlertManagerClient{
 		client:    am.client,
 		clientOpt: newClientOpt,
@@ -154,16 +156,17 @@ func (am *AlertManagerClient) GetAlerts() ([]*models.GettableAlert, error) {
 	return alerts.Payload, nil
 }
 
-func (am *AlertManagerClient) AddAlert(ale *models.PostableAlert, timeout time.Duration) error {
+func (am *AlertManagerClient) AddAlert(ale *models.PostableAlert) error {
+	if am.err != nil {
+		return am.err
+	}
 	alerts := make([]*models.PostableAlert, 0)
 	alerts = append(alerts, ale)
 	params := &alert.PostAlertsParams{
 		Alerts: alerts,
 	}
-	if timeout <= 0 {
-		timeout = defaultTimeout
-	}
-	params.WithTimeout(defaultTimeout)
+
+	params.WithTimeout(am.clientOpt.timeout)
 	_, err := am.client.Alert.PostAlerts(params, nil)
 	if err != nil {
 		return errors.Errorf("error posting alert: %v", err)
@@ -171,14 +174,11 @@ func (am *AlertManagerClient) AddAlert(ale *models.PostableAlert, timeout time.D
 	return nil
 }
 
-func (am *AlertManagerClient) AddAlerts(alerts []*models.PostableAlert, timeout time.Duration) error {
+func (am *AlertManagerClient) AddAlerts(alerts []*models.PostableAlert) error {
 	params := &alert.PostAlertsParams{
 		Alerts: alerts,
 	}
-	if timeout <= 0 {
-		timeout = defaultTimeout
-	}
-	params.WithTimeout(defaultTimeout)
+	params.WithTimeout(am.clientOpt.timeout)
 	_, err := am.client.Alert.PostAlerts(params)
 	if err != nil {
 		return errors.Errorf("error posting alerts: %v", err)
