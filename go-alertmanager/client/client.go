@@ -175,6 +175,9 @@ func (am *AlertManagerClient) AddAlert(ale *models.PostableAlert) error {
 }
 
 func (am *AlertManagerClient) AddAlerts(alerts []*models.PostableAlert) error {
+	if am.err != nil {
+		return am.err
+	}
 	params := &alert.PostAlertsParams{
 		Alerts: alerts,
 	}
