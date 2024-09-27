@@ -17,7 +17,16 @@ import (
 var defaultTimeout = 10 * time.Second
 
 type AlertManagerClient struct {
-	client *client.AlertmanagerAPI
+	client    *client.AlertmanagerAPI
+	clientOpt *clientOpt
+	err       error
+}
+
+type clientOpt struct {
+	silenced  bool
+	inhibited bool
+	filter    []string
+	timeout   time.Duration
 }
 
 func ExtractServerName(fullURL string) (string, error) {
@@ -32,27 +41,111 @@ func NewClientWithPort(ip string, port int) *AlertManagerClient {
 	address := fmt.Sprintf("%s:%d", ip, port)
 	transport := httptransport.New(address, "/api/v2", []string{"http"})
 	amClient := client.New(transport, nil)
-	return &AlertManagerClient{client: amClient}
+	return &AlertManagerClient{client: amClient, clientOpt: defaultClientOpt()}
+}
+
+func defaultClientOpt() *clientOpt {
+	return &clientOpt{
+		silenced:  false,
+		inhibited: false,
+		timeout:   defaultTimeout,
+	}
 }
 
 // NewClient 创建一个新的 AlertManager 客户端
 func NewClient(address string) *AlertManagerClient {
 	transport := httptransport.New(address, "/api/v2", []string{"http"})
 	amClient := client.New(transport, nil)
-	return &AlertManagerClient{client: amClient}
+	return &AlertManagerClient{client: amClient, clientOpt: defaultClientOpt()}
 }
 
-// GetActiveAlerts 获取活跃告警，接受过滤器参数
-func (am *AlertManagerClient) GetActiveAlerts(silenced bool, inhibited bool, timeout time.Duration, filter ...string) ([]*models.GettableAlert, error) {
+func (am *AlertManagerClient) Silenced(silenced bool) *AlertManagerClient {
+	if am.err != nil {
+		return am
+	}
+	// 创建新的 clientOpt 副本，返回新的 AlertManagerClient
+	newClientOpt := &clientOpt{
+		silenced:  am.clientOpt.silenced,
+		inhibited: am.clientOpt.inhibited,
+		filter:    am.clientOpt.filter,
+		timeout:   am.clientOpt.timeout,
+	}
+	newClientOpt.silenced = silenced
+	return &AlertManagerClient{
+		client:    am.client,
+		clientOpt: newClientOpt,
+		err:       am.err,
+	}
+}
+
+func (am *AlertManagerClient) Inhibited(inhibited bool) *AlertManagerClient {
+	if am.err != nil {
+		return am
+	}
+	// 创建新的 clientOpt 副本，返回新的 AlertManagerClient
+	newClientOpt := &clientOpt{
+		silenced:  am.clientOpt.silenced,
+		inhibited: am.clientOpt.inhibited,
+		filter:    am.clientOpt.filter,
+		timeout:   am.clientOpt.timeout,
+	}
+	newClientOpt.inhibited = inhibited
+	return &AlertManagerClient{
+		client:    am.client,
+		clientOpt: newClientOpt,
+		err:       am.err,
+	}
+}
+
+func (am *AlertManagerClient) Timeout(timeout time.Duration) *AlertManagerClient {
+	if am.err != nil {
+		return am
+	}
+	// 创建新的 clientOpt 副本，返回新的 AlertManagerClient
+	newClientOpt := &clientOpt{
+		silenced:  am.clientOpt.silenced,
+		inhibited: am.clientOpt.inhibited,
+		filter:    am.clientOpt.filter,
+		timeout:   am.clientOpt.timeout,
+	}
+	newClientOpt.timeout = timeout
+	return &AlertManagerClient{
+		client:    am.client,
+		clientOpt: newClientOpt,
+		err:       am.err,
+	}
+}
+
+func (am *AlertManagerClient) Filter(filter ...string) *AlertManagerClient {
+	if am.err != nil {
+		return am
+	}
+	// 创建新的 clientOpt 副本，返回新的 AlertManagerClient
+	newClientOpt := &clientOpt{
+		silenced:  am.clientOpt.silenced,
+		inhibited: am.clientOpt.inhibited,
+		filter:    am.clientOpt.filter,
+		timeout:   am.clientOpt.timeout,
+	}
+	newClientOpt.filter = filter
+	return &AlertManagerClient{
+		client:    am.client,
+		clientOpt: newClientOpt,
+		err:       am.err,
+	}
+}
+
+// GetAlerts 获取活跃告警，接受过滤器参数
+func (am *AlertManagerClient) GetAlerts() ([]*models.GettableAlert, error) {
+	if am.err != nil {
+		return nil, am.err
+	}
 	var params = &alert.GetAlertsParams{
-		Inhibited: &inhibited,
-		Silenced:  &silenced,
+		Inhibited: &am.clientOpt.inhibited,
+		Silenced:  &am.clientOpt.silenced,
 	}
-	if len(filter) > 0 {
-		params.WithFilter(filter)
-	}
-	if timeout <= 0 {
-		timeout = defaultTimeout
+	if len(am.clientOpt.filter) > 0 {
+		params.WithFilter(am.clientOpt.filter)
 	}
 	alerts, err := am.client.Alert.GetAlerts(params)
 	if err != nil {
