@@ -5,6 +5,18 @@ import (
 	"time"
 )
 
+func TestGetAlert(t *testing.T) {
+	client := NewClient("10.0.0.195:9003")
+	alerts, err := client.Silenced(false).
+		Filter("severity=\"致命:#4A4A4A\"\n").Inhibited(false).GetAlerts()
+	if err != nil {
+		t.Error(err)
+	}
+	for _, alert := range alerts {
+		t.Log(alert)
+	}
+}
+
 func TestGetAlerts(t *testing.T) {
 	//name, err2 := ExtractServerName("http://notice:9003")
 	//if err2 != nil {
