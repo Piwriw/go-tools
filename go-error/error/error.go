@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 )
 
@@ -12,4 +13,5 @@ func warpPrint(err error) {
 func main() {
 	err := errors.New("sss")
 	warpPrint(err)
+	fmt.Println("all", errors.Cause(err))
 }
