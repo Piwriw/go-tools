@@ -8,7 +8,6 @@ require (
 	gorm.io/driver/postgres v1.5.6
 	gorm.io/gen v0.3.26
 	gorm.io/gorm v1.25.10
-	yunqutech.gitlab.com/agilex/basis v1.1.0
 )
 
 require (

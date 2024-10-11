@@ -1,6 +1,8 @@
 module github.piwriw.go-quic
 
-go 1.20
+go 1.21
+
+toolchain go1.22.0
 
 require github.com/quic-go/quic-go v0.41.0
 
