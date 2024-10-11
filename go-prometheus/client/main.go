@@ -5,6 +5,9 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
+
 	"github.com/prometheus/prometheus/promql/parser"
 
 	"github.com/pkg/errors"
@@ -65,6 +68,7 @@ func (p *PrometheusClient) QueryRange(query string, start, end time.Time, step t
 	return result, nil
 }
 
+// Validate 验证 PromQL 查询是否合法
 func (p *PrometheusClient) Validate(querySQL string) error {
 
 	// 创建查询引擎
@@ -87,10 +91,21 @@ func (p *PrometheusClient) Validate(querySQL string) error {
 	return nil
 }
 
+// Prettify 格式化 PromQL 查询
 func (p *PrometheusClient) Prettify(querySQL string) (string, error) {
 	expr, err := parser.ParseExpr(querySQL)
 	if err != nil {
 		return "", err
 	}
 	return parser.Prettify(expr), nil
+}
+
+// PushGateway 推送指标到 PushGateway
+func (p *PrometheusClient) PushGateway(pushGatewayUrl, jobName string, groups map[string]string, collect prometheus.Collector) error {
+	pusher := push.New(pushGatewayUrl, jobName).
+		Collector(collect)
+	for k, v := range groups {
+		pusher.Grouping(k, v)
+	}
+	return pusher.Push()
 }
