@@ -60,6 +60,5 @@ require (
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 	gorm.io/datatypes v1.2.1 // indirect
 	gorm.io/hints v1.1.2 // indirect
-	gorm.io/plugin/dbresolver v1.5.2 // indirect
-	yunqutech.gitlab.com/common/icarus-sdk-go v1.3.1-0.20240415071025-0ee9c8341d19 // indirect
+	gorm.io/plugin/dbresolver v1.5.2 // indirec
 )
