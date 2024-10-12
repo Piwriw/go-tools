@@ -5,6 +5,28 @@ import (
 	"time"
 )
 
+func TestGetAlertGroups(t *testing.T) {
+	client := NewClient("10.0.0.195:9003")
+	alertGroups, err := client.Silenced(false).Inhibited(false).GetAlertGroups()
+	if err != nil {
+		t.Error(err)
+	}
+	for _, group := range alertGroups {
+		t.Logf("%+v\n", group)
+	}
+}
+
+func TestGetReceivers(t *testing.T) {
+	client := NewClient("10.0.0.195:9003")
+	receivers, err := client.GetReceivers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, receiver := range receivers {
+		t.Log(*receiver.Name)
+	}
+}
+
 func TestGetAlert(t *testing.T) {
 	client := NewClient("10.0.0.195:9003")
 	alerts, err := client.Silenced(false).

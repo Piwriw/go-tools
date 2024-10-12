@@ -5,6 +5,10 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/prometheus/alertmanager/api/v2/client/alertgroup"
+
+	"github.com/prometheus/alertmanager/api/v2/client/receiver"
+
 	"github.com/pkg/errors"
 
 	"github.com/prometheus/alertmanager/api/v2/models"
@@ -149,13 +153,17 @@ func (am *AlertManagerClient) GetAlerts() ([]*models.GettableAlert, error) {
 	if len(am.clientOpt.filter) > 0 {
 		params.WithFilter(am.clientOpt.filter)
 	}
-	alerts, err := am.client.Alert.GetAlerts(params)
+	alertRes, err := am.client.Alert.GetAlerts(params)
 	if err != nil {
 		return nil, errors.Errorf("error fetching alerts: %v", err)
 	}
-	return alerts.Payload, nil
+	if !alertRes.IsSuccess() {
+		return nil, errors.New("error getting alerts")
+	}
+	return alertRes.GetPayload(), nil
 }
 
+// AddAlert 添加告警
 func (am *AlertManagerClient) AddAlert(ale *models.PostableAlert) error {
 	if am.err != nil {
 		return am.err
@@ -174,6 +182,7 @@ func (am *AlertManagerClient) AddAlert(ale *models.PostableAlert) error {
 	return nil
 }
 
+// AddAlerts 添加告警
 func (am *AlertManagerClient) AddAlerts(alerts []*models.PostableAlert) error {
 	if am.err != nil {
 		return am.err
@@ -187,4 +196,41 @@ func (am *AlertManagerClient) AddAlerts(alerts []*models.PostableAlert) error {
 		return errors.Errorf("error posting alerts: %v", err)
 	}
 	return nil
+}
+
+// GetReceivers 获取告警接收者
+func (am *AlertManagerClient) GetReceivers() ([]*models.Receiver, error) {
+	if am.err != nil {
+		return nil, am.err
+	}
+	params := &receiver.GetReceiversParams{}
+	params.WithTimeout(am.clientOpt.timeout)
+	receiverRes, err := am.client.Receiver.GetReceivers(params)
+	if err != nil {
+		return nil, errors.Errorf("error get alerts: %v", err)
+	}
+	if !receiverRes.IsSuccess() {
+		return nil, errors.New("error getting alerts")
+	}
+	return receiverRes.GetPayload(), err
+}
+
+func (am *AlertManagerClient) GetAlertGroups() ([]*models.AlertGroup, error) {
+	if am.err != nil {
+		return nil, am.err
+	}
+	params := &alertgroup.GetAlertGroupsParams{
+		Filter:    am.clientOpt.filter,
+		Inhibited: &am.clientOpt.inhibited,
+		Silenced:  &am.clientOpt.silenced,
+	}
+	params.WithTimeout(am.clientOpt.timeout)
+	receiverRes, err := am.client.Alertgroup.GetAlertGroups(params)
+	if err != nil {
+		return nil, errors.Errorf("error get alerts: %v", err)
+	}
+	if !receiverRes.IsSuccess() {
+		return nil, errors.New("error getting alerts")
+	}
+	return receiverRes.GetPayload(), err
 }
