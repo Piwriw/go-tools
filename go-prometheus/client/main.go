@@ -20,6 +20,8 @@ import (
 	"github.com/prometheus/common/model"
 )
 
+const defaultFlushDeadline = 1 * time.Minute
+
 // PrometheusClient 封装 Prometheus API 客户端
 type PrometheusClient struct {
 	client v1.API
@@ -40,8 +42,8 @@ func NewPrometheusClient(address string) (*PrometheusClient, error) {
 }
 
 // Query 执行 Prometheus 查询
-func (p *PrometheusClient) Query(query string, ts time.Time) (model.Value, error) {
-	result, warnings, err := p.client.Query(context.Background(), query, ts)
+func (p *PrometheusClient) Query(ctx context.Context, query string, ts time.Time) (model.Value, error) {
+	result, warnings, err := p.client.Query(ctx, query, ts)
 	if err != nil {
 		return nil, err
 	}
@@ -52,13 +54,13 @@ func (p *PrometheusClient) Query(query string, ts time.Time) (model.Value, error
 }
 
 // QueryRange 执行 Prometheus 时间范围查询
-func (p *PrometheusClient) QueryRange(query string, start, end time.Time, step time.Duration) (model.Value, error) {
+func (p *PrometheusClient) QueryRange(ctx context.Context, query string, start, end time.Time, step time.Duration) (model.Value, error) {
 	r := v1.Range{
 		Start: start,
 		End:   end,
 		Step:  step,
 	}
-	result, warnings, err := p.client.QueryRange(context.Background(), query, r)
+	result, warnings, err := p.client.QueryRange(ctx, query, r)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +71,7 @@ func (p *PrometheusClient) QueryRange(query string, start, end time.Time, step t
 }
 
 // Validate 验证 PromQL 查询是否合法
-func (p *PrometheusClient) Validate(querySQL string) error {
+func (p *PrometheusClient) Validate(ctx context.Context, querySQL string) error {
 
 	// 创建查询引擎
 	opts := promql.EngineOpts{
@@ -84,7 +86,7 @@ func (p *PrometheusClient) Validate(querySQL string) error {
 	// 使用 Prometheus 的测试存储来执行查询（这里不真正评估数据，只做语法校验）
 	storage := teststorage.New(nil)
 	defer storage.Close()
-	_, err := engine.NewInstantQuery(context.TODO(), storage, nil, querySQL, time.Now())
+	_, err := engine.NewInstantQuery(ctx, storage, nil, querySQL, time.Now())
 	if err != nil {
 		return errors.Wrapf(err, "Valide query is failed")
 	}
@@ -108,4 +110,28 @@ func (p *PrometheusClient) PushGateway(pushGatewayUrl, jobName string, groups ma
 		pusher.Grouping(k, v)
 	}
 	return pusher.Push()
+}
+
+// QueryAllMetrics 查询所有指标
+func (p *PrometheusClient) QueryAllMetrics(ctx context.Context) (model.LabelValues, error) {
+	values, warnings, err := p.client.LabelValues(ctx, "__name__", nil, time.Time{}, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+	if len(warnings) > 0 {
+		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
+	}
+	return values, nil
+}
+
+// QueryMetric 查询指定指标
+func (p *PrometheusClient) QueryMetric(ctx context.Context, name string) (model.Value, error) {
+	values, warnings, err := p.client.Query(ctx, name, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+	if len(warnings) > 0 {
+		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
+	}
+	return values, nil
 }

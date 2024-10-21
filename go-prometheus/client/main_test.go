@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"testing"
@@ -10,12 +11,40 @@ import (
 	"github.com/prometheus/prometheus/promql/parser"
 )
 
-func TestQuery(t *testing.T) {
-	client, err := NewPrometheusClient("http://10.0.0.195:9002")
+var prometheusUrl = "http://10.0.0.195:9002"
+
+func TestQueryMetric(t *testing.T) {
+	metricName := "ALERTS"
+	client, err := NewPrometheusClient(prometheusUrl)
 	if err != nil {
 		t.Fatal(err)
 	}
-	query, err := client.Query("is_alive{category=\"database.gaussdb\"}", time.Now())
+	metrics, err := client.QueryMetric(context.TODO(), metricName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(metrics)
+}
+
+func TestQueryAllMetrics(t *testing.T) {
+	client, err := NewPrometheusClient(prometheusUrl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metrics, err := client.QueryAllMetrics(context.TODO())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(metrics.Len())
+
+}
+
+func TestQuery(t *testing.T) {
+	client, err := NewPrometheusClient(prometheusUrl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query, err := client.Query(context.TODO(), "is_alive{category=\"database.gaussdb\"}", time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,14 +57,14 @@ func TestQueryRange(t *testing.T) {
 	t.Logf("%v", *active)
 }
 
-func TestValidted(t *testing.T) {
+func TestValidate(t *testing.T) {
 	// 要校验的 PromQL 查询
 	query := "111"
-	client, err := NewPrometheusClient("http://10.0.0.195:9002")
+	client, err := NewPrometheusClient(prometheusUrl)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := client.Validate(query); err != nil {
+	if err := client.Validate(context.TODO(), query); err != nil {
 		t.Fatal(err)
 	}
 	t.Log("PASS")
@@ -59,7 +88,7 @@ func TestPrettify(t *testing.T) {
 }
 
 func TestPush(t *testing.T) {
-	client, err := NewPrometheusClient("http://10.0.0.195:9002")
+	client, err := NewPrometheusClient(prometheusUrl)
 	// 创建一个计数器指标
 	counter := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "example_pushgateway_counter", // 指标名称
