@@ -1,40 +1,39 @@
 package main
 
 import (
-	"fmt"
-	"github.com/piwriw/gorm/model"
-	"gorm.io/driver/mysql"
+	"github.com/piwriw/gorm/logger"
+
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
+type User struct {
+	ID int
+	// 其他字段...
+}
+
 func main() {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", "root", "123456", "10.0.0.197", 3308, "joohwan_dev")
-	db, err := gorm.Open(mysql.Open(dsn))
+
+	// 打印 JSON
+	//fmt.Println(string(jsonData))
+	pgDb, err := gorm.Open(postgres.Open("postgres://yunqu:YunquTech01*@@10.0.0.195:15432/devops"), &gorm.Config{
+		Logger: logger.SetGormLogger(),
+	})
 	if err != nil {
 		panic(err)
 	}
-	var ms []model.HestiaInstanceModel
-	db.Select("name", "age").Find(&ms)
+	sql := `select id from athena_config_alertsddd `
 
-	db.Where("name = ?", "jinzhu").Session(&gorm.Session{NewDB: true})
+	for i := 0; i < 1000; i++ {
+		sql += "union all select id from athena_config_alertsddd"
+		//var user User
+		//pgDb.First(&user)
+		//fmt.Println(user)
+		//fmt.Println(user.ID)
+		//fmt.Println(user.Name)
+		//fmt.Println(user.Age)
+	}
 
-	//if err != nil {
-	//	panic(err)
-	//}
-	//result, err := dao.Use(db).Emp.WithContext(context.Background()).GetByID(1)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Printf("User:%v", result)
-	//
-	//name, err := dao.Use(db).Emp.WithContext(context.Background()).GetByName("joohwan")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Printf("User:%v", result)
-	//all, err := dao.Use(db).Emp.WithContext(context.Background()).GetEmps(20)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Printf("User:%v", len(all))
+	pgDb.Exec(sql)
+	//var id int
 }
