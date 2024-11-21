@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
 	"log"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 var done chan interface{}
@@ -37,7 +38,7 @@ func main() {
 	defer conn.Close()
 	go receiveHandler(conn)
 
-	// Our main loop for the client
+	// Our main loop for the operation
 	// We send our relevant packets here
 	for {
 		select {

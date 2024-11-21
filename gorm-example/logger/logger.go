@@ -4,15 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/fatih/color"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-	"gorm.io/gorm/utils"
 	"log"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/fatih/color"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"gorm.io/gorm/utils"
+	"yunqutech.gitlab.com/agilex/sql_exporter/setting"
 )
 
 const (

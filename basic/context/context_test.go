@@ -12,11 +12,11 @@ func TestContext(t *testing.T) {
 
 	go operation(ctx)
 
-	time.Sleep(100 * time.Millisecond) // 在取消前等待一段时间
-	cancel()                           // 取消操作
+	time.Sleep(3 * time.Second) // 在取消前等待一段时间
+	cancel()                    // 取消操作
 
 	// 给足够的时间来查看 operation 如何响应取消信号
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Second)
 }
 func operation(ctx context.Context) {
 	select {

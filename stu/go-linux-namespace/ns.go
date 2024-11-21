@@ -4,13 +4,14 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func NewLinuxNamespace(cloneflags uintptr) {
 	cmd := exec.Command("sh")
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: cloneflags,
+	cmd.SysProcAttr = &unix.SysProcAttr{
+		cloneflags: cloneflags,
 	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

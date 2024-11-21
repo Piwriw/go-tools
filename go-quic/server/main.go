@@ -8,23 +8,24 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/quic-go/quic-go"
 	"io"
 	"log"
 	"math/big"
+
+	"github.com/lucas-clemente/quic-go"
 )
 
 const addr = "localhost:4242"
 
 const message = "foobar"
 
-// We start a server echoing data on the first stream the client opens,
-// then connect with a client, send the message, and wait for its receipt.
+// We start a server echoing data on the first stream the operation opens,
+// then connect with a operation, send the message, and wait for its receipt.
 func main() {
 	log.Fatal(echoServer())
 }
 
-// Start a server that echos all data on the first stream opened by the client
+// Start a server that echos all data on the first stream opened by the operation
 func echoServer() error {
 	listener, err := quic.ListenAddr(addr, generateTLSConfig(), nil)
 	if err != nil {
