@@ -8,7 +8,7 @@ package service
 
 import (
 	context "context"
-	"github.com/piwriw/protobuf/server"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -23,7 +23,7 @@ const (
 	Hello_SayHello_FullMethodName = "/main.Hello/SayHello"
 )
 
-// HelloClient is the client API for Hello service.
+// HelloClient is the operation API for Hello service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type HelloClient interface {

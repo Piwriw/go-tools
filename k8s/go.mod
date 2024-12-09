@@ -2,7 +2,6 @@ module github.piwriw.go-k8s
 
 go 1.21
 
-toolchain go1.22.0
 
 require (
 	github.com/docker/docker v25.0.3+incompatible

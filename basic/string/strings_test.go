@@ -1,13 +1,54 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"strings"
 	"testing"
 	"unicode"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
+
+func TestStringJson(t *testing.T) {
+	category := []string{"database"}
+	database := "redis"
+	category = append(category, database)
+	marshal, err := json.Marshal(category)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(marshal))
+}
+
+type User struct {
+	ID   int
+	Name string
+}
+
+type Class struct {
+	ID    int
+	Uesrs []User
+}
+
+func TestJson(t *testing.T) {
+	u1 := User{
+		ID:   1,
+		Name: "jack",
+	}
+	u2 := User{
+		ID:   2,
+		Name: "joo",
+	}
+	clas := Class{ID: 1,
+		Uesrs: []User{u1, u2}}
+	marshal, err := json.Marshal(clas)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(marshal))
+}
 
 func TestCompare(t *testing.T) {
 	a := "gopher"

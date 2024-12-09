@@ -1,20 +1,23 @@
 package main
 
 import (
-	"gopkg.in/natefinch/lumberjack.v2"
 	"io"
 	"log/slog"
 	"os"
 	"strings"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func main() {
-	logger := InitLogger("app.log", "warn", 1, 1, 1, true)
+	logger := InitLogger("app.log", "warn", 1, 5, 0, true)
 	defer logger.Close()
-	slog.Info("LOG int arr", slog.Any("intarr", "sss"))
-	slog.Info("This is info log")
-	slog.Warn("This is warning log")
-	slog.Error("This is error log", "err", "x", "ss", "xx")
+	for i := 0; i < 100000; i++ {
+		slog.Info("LOG int arr", slog.Any("intarr", "sss"))
+		slog.Info("This is info log")
+		slog.Warn("This is warning log")
+		slog.Error("This is error log", "err", "x", "ss", "xx")
+	}
 }
 
 func InitLogger(filePath string, logLevel string, maxSize int, maxBackups int, maxAge int, isCompress bool) *lumberjack.Logger {

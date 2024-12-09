@@ -15,7 +15,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	wfv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	wfclientset "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
+	wfclientset "github.com/argoproj/argo-workflows/v3/pkg/operation/clientset/versioned"
 )
 
 var helloWorldWorkflow = wfv1.Workflow{
@@ -53,7 +53,7 @@ func main() {
 	checkErr(err)
 	namespace := "argo"
 
-	// create the workflow client
+	// create the workflow operation
 	wfClient := wfclientset.NewForConfigOrDie(config).ArgoprojV1alpha1().Workflows(namespace)
 
 	// submit the hello world workflow

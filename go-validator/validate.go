@@ -6,12 +6,13 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-type Validator struct {
-	IP string `validate:"hostname"`
+type MaxValidator struct {
+	IP string `validate:"max=10"`
 }
 
 func main() {
+
 	validate := validator.New()
-	v := Validator{IP: "www.baidu.com"}
+	v := MaxValidator{IP: "www.baidu.com"}
 	fmt.Println(validate.Struct(v))
 }

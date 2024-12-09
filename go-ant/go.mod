@@ -1,4 +1,4 @@
-module github.piwriw.go-argo
+module github.piwriw.go-ant
 
 go 1.22.0
 

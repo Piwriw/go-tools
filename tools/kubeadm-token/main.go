@@ -6,18 +6,19 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
+	"time"
+
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	clientcertutil "k8s.io/client-go/util/cert"
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	bootstraputil "k8s.io/cluster-bootstrap/token/util"
-	"time"
+	clientset "k8s.io/operation-go/kubernetes"
+	clientcmdapi "k8s.io/operation-go/tools/clientcmd/api"
+	clientcertutil "k8s.io/operation-go/util/cert"
 
 	"strings"
 )
