@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"log/slog"
 	"testing"
 	"time"
 
@@ -122,11 +121,15 @@ func TestName(t *testing.T) {
 }
 
 func TestPrettify(t *testing.T) {
-	expr, err := parser.ParseExpr("a @ 1")
+	client, err := NewPrometheusClient(prometheusUrl)
 	if err != nil {
-		slog.Error("ParseExpr is failed", slog.Any("err", err))
+		t.Fatal(err)
 	}
-	t.Log(parser.Prettify(expr))
+	prettify, err := client.Prettify("metric_name{label1=\"value1\", label2=\"value2\", label3=\"value3\", label4=\"value4\"}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(prettify)
 }
 
 func TestPush(t *testing.T) {
