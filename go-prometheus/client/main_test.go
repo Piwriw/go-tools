@@ -2,16 +2,19 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"testing"
 	"time"
 
+	"github.com/prometheus/common/model"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/prometheus/promql/parser"
 )
 
-var prometheusUrl = "http://10.0.0.195:9002"
+var prometheusUrl = "http://10.0.0.163:9002"
 
 func TestQueryMetric(t *testing.T) {
 	metricName := "ALERTS"
@@ -44,14 +47,53 @@ func TestQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	query, err := client.Query(context.TODO(), "is_alive{category=\"database.gaussdb\"}", time.Now())
+	query, err := client.Query(context.TODO(), "db_top_activity", time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(query)
+	resultMap, err := convertQueryResultToFieldValueMap(query)
+
+	t.Log(resultMap)
 
 }
 
+// 将 Prometheus 查询结果转换为字段和值的映射
+func convertQueryResultToFieldValueMap(query model.Value) ([]map[string]interface{}, error) {
+	var result []map[string]interface{}
+
+	switch v := query.(type) {
+	case model.Vector: // 瞬时向量结果
+		for _, sample := range v {
+			entry := make(map[string]interface{})
+			// 添加标签字段和值
+			for key, value := range sample.Metric {
+				entry[string(key)] = string(value)
+			}
+			// 添加值和时间戳
+			entry["value"] = float64(sample.Value)
+			entry["timestamp"] = sample.Timestamp.Time()
+			result = append(result, entry)
+		}
+	case model.Matrix: // 时间序列结果
+		for _, series := range v {
+			for _, point := range series.Values {
+				entry := make(map[string]interface{})
+				// 添加标签字段和值
+				for key, value := range series.Metric {
+					entry[string(key)] = string(value)
+				}
+				// 添加值和时间戳
+				entry["value"] = float64(point.Value)
+				entry["timestamp"] = point.Timestamp.Time()
+				result = append(result, entry)
+			}
+		}
+	default:
+		return nil, fmt.Errorf("unsupported query result type: %T", query)
+	}
+
+	return result, nil
+}
 func TestQueryRange(t *testing.T) {
 	active := new(bool)
 	t.Logf("%v", *active)

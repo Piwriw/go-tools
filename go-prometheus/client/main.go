@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -134,4 +135,42 @@ func (p *PrometheusClient) QueryMetric(ctx context.Context, name string) (model.
 		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
 	}
 	return values, nil
+}
+
+// 将 Prometheus 查询结果转换为字段和值的映射
+func (p *PrometheusClient) convertResToFieldMap(query model.Value) ([]map[string]interface{}, error) {
+	var result []map[string]interface{}
+
+	switch v := query.(type) {
+	case model.Vector: // 瞬时向量结果
+		for _, sample := range v {
+			entry := make(map[string]interface{})
+			// 添加标签字段和值
+			for key, value := range sample.Metric {
+				entry[string(key)] = string(value)
+			}
+			// 添加值和时间戳
+			entry["value"] = float64(sample.Value)
+			entry["timestamp"] = sample.Timestamp.Time()
+			result = append(result, entry)
+		}
+	case model.Matrix: // 时间序列结果
+		for _, series := range v {
+			for _, point := range series.Values {
+				entry := make(map[string]interface{})
+				// 添加标签字段和值
+				for key, value := range series.Metric {
+					entry[string(key)] = string(value)
+				}
+				// 添加值和时间戳
+				entry["value"] = float64(point.Value)
+				entry["timestamp"] = point.Timestamp.Time()
+				result = append(result, entry)
+			}
+		}
+	default:
+		return nil, fmt.Errorf("unsupported query result type: %T", query)
+	}
+
+	return result, nil
 }
