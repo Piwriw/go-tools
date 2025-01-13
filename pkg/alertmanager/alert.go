@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/prometheus/alertmanager/notify/webhook"
-	"gopkg.in/gomail.v2"
 	"yunqutech.com/hawkeye/athena/pkg/http"
 )
 
@@ -242,6 +241,11 @@ type WechatAlert struct {
 	client *http.Client
 }
 
+type wechatRes struct {
+	Errcode int    `json:"errcode"`
+	Errmsg  string `json:"errmsg"`
+}
+
 func (w *WechatAlert) Execute(c AlertContext, users []string) error {
 	wechatContext, ok := c.(*WechatAlertContext)
 	if !ok {
@@ -267,10 +271,19 @@ func (w *WechatAlert) Execute(c AlertContext, users []string) error {
 		}
 
 		req, _ := json.Marshal(data)
-		_, err := w.client.JSON().Post(wechatContext.WechatWebhook, req)
+		body, err := w.client.JSON().Post(wechatContext.WechatWebhook, req)
 		if err != nil {
 			slog.Error("Wechat, Send data to Wechat failed, ", slog.Any("err", err))
 			return err
+		}
+		wechatRes := &wechatRes{}
+		if err = json.Unmarshal(body, &wechatRes); err != nil {
+			slog.Error("WechatAlert, Unmarshal response is failed", slog.Any("err", err))
+			return err
+		}
+		if wechatRes.Errcode != 0 {
+			slog.Error("WechatAlert, Send data to WechatAlert failed, ", slog.Any("err", wechatRes))
+			return errors.New(wechatRes.Errmsg)
 		}
 	}
 	return nil
@@ -288,10 +301,19 @@ func (w *WechatAlert) ExecuteTest(c AlertContext) error {
 	}
 	slog.Debug("Wechat is ExecuteTest", slog.String("data", "告警测试邮件，请勿回复，谢谢"), slog.Any("Context", wechatContext))
 	req, _ := json.Marshal(data)
-	_, err := w.client.JSON().Post(wechatContext.WechatWebhook, req)
+	body, err := w.client.JSON().Post(wechatContext.WechatWebhook, req)
 	if err != nil {
 		slog.Error("Wechat, Send data to Wechat failed, ", slog.Any("err", err))
 		return err
+	}
+	wechatRes := &wechatRes{}
+	if err = json.Unmarshal(body, &wechatRes); err != nil {
+		slog.Error("WechatAlert, Unmarshal response is failed", slog.Any("err", err))
+		return err
+	}
+	if wechatRes.Errcode != 0 {
+		slog.Error("WechatAlert, Send data to WechatAlert failed, ", slog.Any("err", wechatRes))
+		return errors.New(wechatRes.Errmsg)
 	}
 	return nil
 }
@@ -327,13 +349,27 @@ func (d *DingtalkAlert) Execute(c AlertContext, users []string) error {
 			},
 		}
 		req, _ := json.Marshal(data)
-		_, err := d.client.JSON().Post(dingtalkContext.Webhook, req)
+		body, err := d.client.JSON().Post(dingtalkContext.Webhook, req)
 		if err != nil {
 			slog.Error("Dingtalk, Send data to Dingtalk failed, ", slog.Any("err", err))
 			return err
 		}
+		dingTalkRes := &dingTalkRes{}
+		if err = json.Unmarshal(body, &dingTalkRes); err != nil {
+			slog.Error("LarkAlert, Unmarshal response is failed", slog.Any("err", err))
+			return err
+		}
+		if dingTalkRes.Errcode != 0 {
+			slog.Error("LarkAlert, Send data to LarkAlert failed, ", slog.Any("err", dingTalkRes))
+			return errors.New(dingTalkRes.Errmsg)
+		}
 	}
 	return nil
+}
+
+type dingTalkRes struct {
+	Errcode int    `json:"errcode"`
+	Errmsg  string `json:"errmsg"`
 }
 
 func (d *DingtalkAlert) ExecuteTest(c AlertContext) error {
@@ -350,10 +386,19 @@ func (d *DingtalkAlert) ExecuteTest(c AlertContext) error {
 
 	slog.Debug("Dingtalk is ExecuteTest", slog.String("data", "告警测试邮件，请勿回复，谢谢"), slog.Any("Context", dingtalkContext))
 	req, _ := json.Marshal(data)
-	_, err := d.client.JSON().Post(dingtalkContext.Webhook, req)
+	body, err := d.client.JSON().Post(dingtalkContext.Webhook, req)
 	if err != nil {
 		slog.Error("Dingtalk, Send data to Dingtalk failed, ", slog.Any("err", err))
 		return err
+	}
+	dingTalkRes := &dingTalkRes{}
+	if err = json.Unmarshal(body, &dingTalkRes); err != nil {
+		slog.Error("DingtalkAlert, Unmarshal response is failed", slog.Any("err", err))
+		return err
+	}
+	if dingTalkRes.Errcode != 0 {
+		slog.Error("DingtalkAlert, Send data to LarkAlert failed, ", slog.Any("err", dingTalkRes))
+		return errors.New(dingTalkRes.Errmsg)
 	}
 	return nil
 }
@@ -478,6 +523,9 @@ func getLarkContent(userIDS []string, context string) string {
 		msg := fmt.Sprintf(larkTemplate, userID)
 		res += msg
 	}
+	if res == "" {
+		return context
+	}
 	return res + "\n" + context
 }
 
@@ -506,13 +554,28 @@ func (l *LarkAlert) Execute(c AlertContext, users []string) error {
 			},
 		}
 		req, _ := json.Marshal(data)
-		_, err := l.client.JSON().Post(larkContext.Webhook, req)
+		body, err := l.client.JSON().Post(larkContext.Webhook, req)
 		if err != nil {
 			slog.Error("Lark, Send data to Lark failed, ", slog.Any("err", err))
 			return err
 		}
+		larkRes := &larkRes{}
+		if err = json.Unmarshal(body, &larkRes); err != nil {
+			slog.Error("LarkAlert, Unmarshal response is failed", slog.Any("err", err))
+			return err
+		}
+		if larkRes.Code != 0 {
+			slog.Error("LarkAlert, Send data to LarkAlert failed, ", slog.Any("err", larkRes))
+			return errors.New(larkRes.Msg)
+		}
 	}
 	return nil
+}
+
+type larkRes struct {
+	Code int         `json:"code"`
+	Data interface{} `json:"data"`
+	Msg  string      `json:"msg"`
 }
 
 func (l *LarkAlert) ExecuteTest(c AlertContext) error {
@@ -529,10 +592,19 @@ func (l *LarkAlert) ExecuteTest(c AlertContext) error {
 
 	slog.Debug("LarkAlert is ExecuteTest", slog.String("data", "飞书告警测试，请勿回复，谢谢"), slog.Any("Context", larkAlertContext))
 	req, _ := json.Marshal(data)
-	_, err := l.client.JSON().Post(larkAlertContext.Webhook, req)
+	body, err := l.client.JSON().Post(larkAlertContext.Webhook, req)
 	if err != nil {
 		slog.Error("LarkAlert, Send data to LarkAlert failed, ", slog.Any("err", err))
 		return err
+	}
+	larkRes := &larkRes{}
+	if err = json.Unmarshal(body, &larkRes); err != nil {
+		slog.Error("LarkAlert, Unmarshal response is failed", slog.Any("err", err))
+		return err
+	}
+	if larkRes.Code != 0 {
+		slog.Error("LarkAlert, Send data to LarkAlert failed, ", slog.Any("err", larkRes))
+		return errors.New(larkRes.Msg)
 	}
 	return nil
 }
