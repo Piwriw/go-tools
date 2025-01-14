@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/prometheus/alertmanager/notify/webhook"
+	"gopkg.in/gomail.v2"
 	"yunqutech.com/hawkeye/athena/pkg/http"
 )
 
