@@ -54,17 +54,20 @@ func ToString(value interface{}) string {
 	case []byte:
 		return string(v) // 将 []byte 转换为字符串
 	default:
-		// 处理自定义类型、map、slice 等
-		if reflect.TypeOf(v).Kind() == reflect.Struct {
-			// 如果是结构体，尝试序列化为 JSON
+		// 处理指针类型
+		val := reflect.ValueOf(v)
+		if val.Kind() == reflect.Ptr {
+			val = val.Elem() // 解引用指针
+		}
+		// 处理结构体、map、slice 等
+		if val.Kind() == reflect.Struct {
 			bytes, err := json.Marshal(v)
 			if err != nil {
 				return fmt.Sprintf("unknown type: %T", v)
 			}
 			return string(bytes)
 		}
-		if reflect.TypeOf(v).Kind() == reflect.Map || reflect.TypeOf(v).Kind() == reflect.Slice {
-			// 如果是 map 或 slice，尝试序列化为 JSON
+		if val.Kind() == reflect.Map || val.Kind() == reflect.Slice {
 			bytes, err := json.Marshal(v)
 			if err != nil {
 				return fmt.Sprintf("unknown type: %T", v)
