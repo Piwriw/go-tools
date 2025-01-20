@@ -19,14 +19,13 @@ import (
 // }
 
 type CronScheduler interface {
-	Start()                                                                                // 启动调度器
-	Stop() error                                                                           // 停止调度器
-	AddCronJob(cronExpr string, task func()) (Job, error)                                  // 添加 Cron 任务
-	AddCronJobWithName(cronExpr string, task func(), name string) (Job, error)             // 添加带名称的 Cron 任务
-	AddCronJobWithOptions(cronExpr string, task func(), options ...JobOption) (Job, error) // 添加带选项的 Cron 任务
-	GetJobs() ([]Job, error)                                                               // 获取所有任务
-	GetJobByName(name string) (Job, error)                                                 // 根据名称获取任务
-	GetJobByID(id string) (Job, error)                                                     // 根据 ID 获取任务
+	Start()                                                                    // 启动调度器
+	Stop() error                                                               // 停止调度器
+	AddCronJob(cronExpr string, task func()) (Job, error)                      // 添加 Cron 任务
+	AddCronJobWithName(cronExpr string, task func(), name string) (Job, error) // 添加带名称的 Cron 任务
+	GetJobs() ([]Job, error)                                                   // 获取所有任务
+	GetJobByName(name string) (Job, error)                                     // 根据名称获取任务
+	GetJobByID(id string) (Job, error)                                         // 根据 ID 获取任务
 }
 
 // Job 任务接口

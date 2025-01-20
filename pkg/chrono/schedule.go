@@ -1,12 +1,8 @@
-package gocron
+package chrono
 
 import (
 	"fmt"
 	"time"
-
-	"github.piwriw.go-tools/pkg/chrono"
-
-	"github.com/google/uuid"
 
 	"github.com/go-co-op/gocron/v2"
 )
@@ -39,45 +35,35 @@ func (s *Scheduler) Stop() error {
 }
 
 // RemoveJob 移除任务
-func (s *Scheduler) RemoveJob(job chrono.Job) error {
-	jobID, err := uuid.Parse(job.ID())
-	if err != nil {
-		return fmt.Errorf("failed to parse job ID: %w", err)
-	}
-
-	// 调用底层的 RemoveJob 方法
-	return s.scheduler.RemoveJob(jobID)
+func (s *Scheduler) RemoveJob(job gocron.Job) error {
+	return s.scheduler.RemoveJob(job.ID())
 }
 
 // GetJobs add all Jobs
-func (s *Scheduler) GetJobs() ([]chrono.Job, error) {
-	jobs := make([]chrono.Job, 0)
-	for _, job := range s.scheduler.Jobs() {
-		jobs = append(jobs, NewCronJob(job))
-	}
-	return jobs, nil
+func (s *Scheduler) GetJobs() ([]gocron.Job, error) {
+	return s.scheduler.Jobs(), nil
 }
 
-func (s *Scheduler) GetJobByName(jobName string) (chrono.Job, error) {
+func (s *Scheduler) GetJobByName(jobName string) (gocron.Job, error) {
 	for _, job := range s.scheduler.Jobs() {
 		if job.Name() == jobName {
-			return NewCronJob(job), nil
+			return job, nil
 		}
 	}
 	return nil, fmt.Errorf("job %s not found", jobName)
 }
 
-func (s *Scheduler) GetJobByID(jobID string) (chrono.Job, error) {
+func (s *Scheduler) GetJobByID(jobID string) (gocron.Job, error) {
 	for _, job := range s.scheduler.Jobs() {
 		if job.ID().String() == jobID {
-			return NewCronJob(job), nil
+			return job, nil
 		}
 	}
 	return nil, fmt.Errorf("job %s not found", jobID)
 }
 
 // AddCronJob adds a new cron job.
-func (s *Scheduler) AddCronJob(cronExpr string, task func()) (chrono.Job, error) {
+func (s *Scheduler) AddCronJob(cronExpr string, task func()) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
 		gocron.CronJob(cronExpr, false), // Use cron expression
 		gocron.NewTask(task),            // Task function
@@ -85,10 +71,10 @@ func (s *Scheduler) AddCronJob(cronExpr string, task func()) (chrono.Job, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
-	return NewCronJob(job), nil
+	return job, nil
 }
 
-func (s *Scheduler) AddCronJobWithName(cronExpr string, task func(), taskName string) (chrono.Job, error) {
+func (s *Scheduler) AddCronJobWithName(cronExpr string, task func(), taskName string) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
 		gocron.CronJob(cronExpr, false), // Use cron expression
 		gocron.NewTask(task),            // Task function
@@ -97,18 +83,10 @@ func (s *Scheduler) AddCronJobWithName(cronExpr string, task func(), taskName st
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
-	return &CronJob{
-		goJob: job,
-	}, nil
+	return job, nil
 }
 
-// convertJobOption 将 gron.JobOption 转换为 gocron.JobOption
-func convertJobOption(option ...chrono.JobOption) (gocron.JobOption, error) {
-
-	return nil, fmt.Errorf("not implemented")
-}
-func (s *Scheduler) AddCronJobWithOptions(cronExpr string, task func(), options ...chrono.JobOption) (chrono.Job, error) {
-	convertJobOption(options...)
+func (s *Scheduler) AddCronJobWithOptions(cronExpr string, task func(), options ...gocron.JobOption) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
 		gocron.CronJob(cronExpr, false), // Use cron expression
 		gocron.NewTask(task),            // Task function
@@ -117,13 +95,11 @@ func (s *Scheduler) AddCronJobWithOptions(cronExpr string, task func(), options 
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
-	return &CronJob{
-		goJob: job,
-	}, nil
+	return job, nil
 }
 
 // AddOnceJob adds a new cron job.
-func (s *Scheduler) AddOnceJob(task func(), times ...time.Time) (chrono.Job, error) {
+func (s *Scheduler) AddOnceJob(task func(), times ...time.Time) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
 		gocron.OneTimeJob(gocron.OneTimeJobStartDateTimes(times...)),
 		gocron.NewTask(task),
@@ -131,9 +107,7 @@ func (s *Scheduler) AddOnceJob(task func(), times ...time.Time) (chrono.Job, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
-	return &CronJob{
-		goJob: job,
-	}, nil
+	return job, nil
 }
 
 // AddIntervalJob 添加一个间隔任务
