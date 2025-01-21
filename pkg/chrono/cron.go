@@ -3,6 +3,9 @@ package chrono
 import (
 	"fmt"
 	"time"
+
+	"github.com/go-co-op/gocron/v2"
+	"github.com/google/uuid"
 )
 
 const (
@@ -10,6 +13,70 @@ const (
 	WeekTimeType  string = "%d %d * * %d "
 	MonthTimeType string = "%d %d * %d * "
 )
+
+type CronJob struct {
+	Name     string
+	Expr     string
+	TaskFunc func()
+	Hooks    gocron.EventListener
+	err      error
+}
+
+func NewCronJob(expr string) *CronJob {
+	return &CronJob{
+		Expr: expr,
+	}
+}
+
+func (c *CronJob) Error() string {
+	return c.err.Error()
+}
+
+func (c *CronJob) Names(name string) *CronJob {
+	if name == "" {
+		name = uuid.New().String()
+	}
+	c.Name = name
+	return c
+}
+
+func (c *CronJob) Task(task func()) *CronJob {
+	if task == nil {
+		c.err = fmt.Errorf("%w; wrong task: task function cannot be nil", c.err)
+	}
+	c.TaskFunc = task
+	return c
+}
+
+func (c *CronJob) BeforeJobRuns(eventListenerFunc func(jobID uuid.UUID, jobName string)) *CronJob {
+	c.Hooks = gocron.BeforeJobRuns(eventListenerFunc)
+	return c
+}
+
+func (c *CronJob) BeforeJobRunsSkipIfBeforeFuncErrors(eventListenerFunc func(jobID uuid.UUID, jobName string) error) *CronJob {
+	c.Hooks = gocron.BeforeJobRunsSkipIfBeforeFuncErrors(eventListenerFunc)
+	return c
+}
+
+func (c *CronJob) AfterJobRuns(eventListenerFunc func(jobID uuid.UUID, jobName string)) *CronJob {
+	c.Hooks = gocron.AfterJobRuns(eventListenerFunc)
+	return c
+}
+
+func (c *CronJob) AfterJobRunsWithError(eventListenerFunc func(jobID uuid.UUID, jobName string, err error)) *CronJob {
+	c.Hooks = gocron.AfterJobRunsWithError(eventListenerFunc)
+	return c
+}
+
+func (c *CronJob) AfterJobRunsWithPanic(eventListenerFunc func(jobID uuid.UUID, jobName string, recoverData any)) *CronJob {
+	c.Hooks = gocron.AfterJobRunsWithPanic(eventListenerFunc)
+	return c
+}
+
+func (c *CronJob) AfterLockError(eventListenerFunc func(jobID uuid.UUID, jobName string, err error)) *CronJob {
+	c.Hooks = gocron.AfterLockError(eventListenerFunc)
+	return c
+}
 
 type TimeType string
 

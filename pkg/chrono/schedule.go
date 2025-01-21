@@ -2,25 +2,73 @@ package chrono
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
+	"github.com/google/uuid"
 )
+
+type SchedulerMonitor struct {
+	mu      sync.Mutex
+	counter map[string]int
+	time    map[string][]time.Duration
+}
+
+func NewSchedulerMonitor() *SchedulerMonitor {
+	return &SchedulerMonitor{
+		counter: make(map[string]int),
+		time:    make(map[string][]time.Duration),
+	}
+}
+
+func (t *SchedulerMonitor) IncrementJob(_ uuid.UUID, name string, _ []string, _ gocron.JobStatus) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	_, ok := t.counter[name]
+	if !ok {
+		t.counter[name] = 0
+	}
+	t.counter[name]++
+}
+
+func (t *SchedulerMonitor) RecordJobTiming(startTime, endTime time.Time, _ uuid.UUID, name string, _ []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	_, ok := t.time[name]
+	if !ok {
+		t.time[name] = make([]time.Duration, 0)
+	}
+	t.time[name] = append(t.time[name], endTime.Sub(startTime))
+}
 
 // Scheduler 封装 gocron 的调度器
 type Scheduler struct {
 	scheduler gocron.Scheduler
+	monitor   *SchedulerMonitor
+}
+
+type Options struct {
+	Monitor bool
 }
 
 // NewScheduler creates a new scheduler.
-func NewScheduler() (*Scheduler, error) {
-	s, err := gocron.NewScheduler()
+func NewScheduler(monitor *SchedulerMonitor) (*Scheduler, error) {
+
+	// 根据 monitor 是否为空来决定如何创建调度器
+	if monitor == nil {
+		monitor = NewSchedulerMonitor()
+	}
+	s, err := gocron.NewScheduler(gocron.WithMonitor(monitor))
+	// 错误处理
 	if err != nil {
 		return nil, fmt.Errorf("failed to create scheduler: %w", err)
 	}
 
+	// 返回 Scheduler
 	return &Scheduler{
 		scheduler: s,
+		monitor:   monitor,
 	}, nil
 }
 
@@ -63,39 +111,51 @@ func (s *Scheduler) GetJobByID(jobID string) (gocron.Job, error) {
 }
 
 // AddCronJob adds a new cron job.
-func (s *Scheduler) AddCronJob(cronExpr string, task func()) (gocron.Job, error) {
-	job, err := s.scheduler.NewJob(
-		gocron.CronJob(cronExpr, false), // Use cron expression
-		gocron.NewTask(task),            // Task function
+func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
+	if job == nil {
+		return nil, fmt.Errorf("job cannot be nil")
+	}
+	if job.err != nil {
+		return nil, job.err
+	}
+	// 检查任务函数是否存在
+	if job.TaskFunc == nil {
+		return nil, fmt.Errorf("job %s has no task function", job.Name)
+	}
+
+	// 创建一个新的定时任务
+	jobInstance, err := s.scheduler.NewJob(
+		gocron.CronJob(job.Expr, false), // 使用 cron 表达式
+		gocron.NewTask(job.TaskFunc),    // 任务函数
+		gocron.WithEventListeners(job.Hooks),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
-	return job, nil
+
+	return jobInstance, nil
 }
 
-func (s *Scheduler) AddCronJobWithName(cronExpr string, task func(), taskName string) (gocron.Job, error) {
-	job, err := s.scheduler.NewJob(
-		gocron.CronJob(cronExpr, false), // Use cron expression
-		gocron.NewTask(task),            // Task function
-		gocron.WithName(taskName),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add job: %w", err)
+func (s *Scheduler) AddCronJobWithOptions(job *CronJob, options ...gocron.JobOption) (gocron.Job, error) {
+	if job == nil {
+		return nil, fmt.Errorf("job cannot be nil")
 	}
-	return job, nil
-}
-
-func (s *Scheduler) AddCronJobWithOptions(cronExpr string, task func(), options ...gocron.JobOption) (gocron.Job, error) {
-	job, err := s.scheduler.NewJob(
-		gocron.CronJob(cronExpr, false), // Use cron expression
-		gocron.NewTask(task),            // Task function
+	if job.err != nil {
+		return nil, job.err
+	}
+	// 检查任务函数是否存在
+	if job.TaskFunc == nil {
+		return nil, fmt.Errorf("job %s has no task function", job.Name)
+	}
+	jobInstance, err := s.scheduler.NewJob(
+		gocron.CronJob(job.Expr, false),
+		gocron.NewTask(job.TaskFunc),
 		options...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
-	return job, nil
+	return jobInstance, nil
 }
 
 // AddOnceJob adds a new cron job.
@@ -111,13 +171,39 @@ func (s *Scheduler) AddOnceJob(task func(), times ...time.Time) (gocron.Job, err
 }
 
 // AddIntervalJob 添加一个间隔任务
-// func (s *Scheduler) AddIntervalJob(interval time.Duration, task func()) (gocron.CronJob, error) {
-// 	job, err := s.scheduler.NewCronJob(
-// 		gocron.DurationJob(interval), // 使用时间间隔
-// 		gocron.NewTask(task),         // 任务函数
-// 	)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("添加任务失败: %w", err)
-// 	}
-// 	return job, nil
-// }
+func (s *Scheduler) AddIntervalJob(interval time.Duration, task func()) (gocron.Job, error) {
+	job, err := s.scheduler.NewJob(
+		gocron.DurationJob(interval), // 使用时间间隔
+		gocron.NewTask(task),         // 任务函数
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add job: %w", err)
+	}
+	return job, nil
+}
+
+// AddIntervalJobWithName 添加一个间隔任务,支持任务名称
+func (s *Scheduler) AddIntervalJobWithName(interval time.Duration, task func(), name string) (gocron.Job, error) {
+	job, err := s.scheduler.NewJob(
+		gocron.DurationJob(interval), // 使用时间间隔
+		gocron.NewTask(task),         // 任务函数
+		gocron.WithName(name),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add job: %w", err)
+	}
+	return job, nil
+}
+
+// AddIntervalJobWithOptions 添加一个间隔任务,支持原生拓展方法
+func (s *Scheduler) AddIntervalJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
+	job, err := s.scheduler.NewJob(
+		gocron.DurationJob(interval), // 使用时间间隔
+		gocron.NewTask(task),         // 任务函数
+		options...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add job: %w", err)
+	}
+	return job, nil
+}
