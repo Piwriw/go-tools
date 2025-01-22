@@ -87,10 +87,6 @@ type Scheduler struct {
 	monitor   gocron.MonitorStatus
 }
 
-type Options struct {
-	Monitor bool
-}
-
 // NewScheduler creates a new scheduler.
 func NewScheduler(monitor gocron.MonitorStatus) (*Scheduler, error) {
 	// 根据 monitor 是否为空来决定如何创建调度器
@@ -170,7 +166,7 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 		gocron.WithName(job.Name),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add job: %w", err)
+		return nil, fmt.Errorf("failed to add cron job: %w", err)
 	}
 
 	return jobInstance, nil
@@ -199,15 +195,17 @@ func (s *Scheduler) AddCronJobWithOptions(job *CronJob, options ...gocron.JobOpt
 }
 
 // AddOnceJob adds a new cron job.
-func (s *Scheduler) AddOnceJob(task func(), times ...time.Time) (gocron.Job, error) {
-	job, err := s.scheduler.NewJob(
-		gocron.OneTimeJob(gocron.OneTimeJobStartDateTimes(times...)),
-		gocron.NewTask(task),
+func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
+	jobInstance, err := s.scheduler.NewJob(
+		gocron.OneTimeJob(gocron.OneTimeJobStartDateTimes(job.WorkTime...)),
+		gocron.NewTask(job.TaskFunc, job.Parameters...), // 任务函数
+		gocron.WithEventListeners(job.Hooks...),
+		gocron.WithName(job.Name),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add job: %w", err)
+		return nil, fmt.Errorf("failed to add once job: %w", err)
 	}
-	return job, nil
+	return jobInstance, nil
 }
 
 // AddIntervalJob 添加一个间隔任务

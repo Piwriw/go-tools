@@ -6,10 +6,37 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/go-co-op/gocron/v2"
+	"github.com/google/uuid"
 )
+
+func TestOnceJob(t *testing.T) {
+	scheduler, err := NewScheduler(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 Cron 任务
+	task := func(a, b int) error {
+		fmt.Println("Task executed with parameters:", a, b)
+		return nil
+	}
+	onceJob := NewOnceJob(time.Now().Add(time.Minute)).
+		Names("TestOnceJob").
+		Task(task, 1, 2)
+
+	job, err := scheduler.AddOnceJob(onceJob)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	nextRun, err := job.NextRun()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
 
 func TestMonitor(t *testing.T) {
 	scheduler, err := NewScheduler(nil)
