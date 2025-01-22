@@ -19,9 +19,10 @@ func TestMonitor(t *testing.T) {
 	// 添加一个 Cron 任务
 	task := func(a, b int) error {
 		fmt.Println("Task executed with parameters:", a, b)
-		return errors.New("some error")
+		return nil
 	}
 	cronJob := NewCronJob(DayTimeToCron(time.Now().Add(time.Minute*1))).
+		Names("TestMonitor").
 		Task(task, 1, 2)
 
 	job, err := scheduler.AddCronJob(cronJob)

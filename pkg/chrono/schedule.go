@@ -47,6 +47,7 @@ func newDefaultSchedulerMonitor() *defaultSchedulerMonitor {
 	}
 }
 
+// IncrementJob 增加任务的执行次数
 func (s *defaultSchedulerMonitor) IncrementJob(id uuid.UUID, name string, tags []string, status gocron.JobStatus) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -58,6 +59,7 @@ func (s *defaultSchedulerMonitor) IncrementJob(id uuid.UUID, name string, tags [
 	s.counter[name]++
 }
 
+// RecordJobTiming 记录任务的执行时间
 func (s *defaultSchedulerMonitor) RecordJobTiming(startTime, endTime time.Time, id uuid.UUID, name string, tags []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -70,6 +72,7 @@ func (s *defaultSchedulerMonitor) RecordJobTiming(startTime, endTime time.Time, 
 	s.time[name] = append(s.time[name], endTime.Sub(startTime))
 }
 
+// RecordJobTimingWithStatus 记录任务的执行时间、状态
 func (s *defaultSchedulerMonitor) RecordJobTimingWithStatus(startTime, endTime time.Time, id uuid.UUID, name string, tags []string, status gocron.JobStatus, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -94,7 +97,7 @@ func NewScheduler(monitor gocron.MonitorStatus) (*Scheduler, error) {
 	if monitor == nil {
 		monitor = newDefaultSchedulerMonitor()
 	}
-	s, err := gocron.NewScheduler(gocron.WithMonitorStatus(monitor))
+	s, err := gocron.NewScheduler(gocron.WithMonitorStatus(monitor), gocron.WithMonitor(monitor))
 	// 错误处理
 	if err != nil {
 		return nil, fmt.Errorf("failed to create scheduler: %w", err)
@@ -136,6 +139,7 @@ func (s *Scheduler) GetJobByName(jobName string) (gocron.Job, error) {
 	return nil, fmt.Errorf("job %s not found", jobName)
 }
 
+// GetJobByID get job BY ID
 func (s *Scheduler) GetJobByID(jobID string) (gocron.Job, error) {
 	for _, job := range s.scheduler.Jobs() {
 		if job.ID().String() == jobID {
@@ -163,6 +167,7 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 		gocron.CronJob(job.Expr, false),                 // 使用 cron 表达式
 		gocron.NewTask(job.TaskFunc, job.Parameters...), // 任务函数
 		gocron.WithEventListeners(job.Hooks...),
+		gocron.WithName(job.Name),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
