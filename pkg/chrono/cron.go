@@ -19,7 +19,7 @@ type CronJob struct {
 	Expr       string
 	TaskFunc   any
 	Parameters []any
-	Hooks      gocron.EventListener
+	Hooks      []gocron.EventListener
 	err        error
 }
 
@@ -50,34 +50,52 @@ func (c *CronJob) Task(task any, parameters ...any) *CronJob {
 	return c
 }
 
+func (c *CronJob) addHooks(hook ...gocron.EventListener) *CronJob {
+	if c.Hooks == nil {
+		c.Hooks = make([]gocron.EventListener, 0)
+	}
+	c.Hooks = append(c.Hooks, hook...)
+	return c
+}
+
+func (c *CronJob) DefaultHooks() *CronJob {
+	return c.addHooks(
+		gocron.BeforeJobRuns(defaultBeforeJobRuns),
+		gocron.BeforeJobRunsSkipIfBeforeFuncErrors(defaultBeforeJobRunsSkipIfBeforeFuncErrors),
+		gocron.AfterJobRuns(defaultAfterJobRuns),
+		gocron.AfterJobRunsWithError(defaultAfterJobRunsWithError),
+		gocron.AfterJobRunsWithPanic(defaultAfterJobRunsWithPanic),
+		gocron.AfterLockError(defaultAfterLockError))
+}
+
+// BeforeJobRuns 添加任务运行前的钩子函数
 func (c *CronJob) BeforeJobRuns(eventListenerFunc func(jobID uuid.UUID, jobName string)) *CronJob {
-	c.Hooks = gocron.BeforeJobRuns(eventListenerFunc)
-	return c
+	return c.addHooks(gocron.BeforeJobRuns(eventListenerFunc))
 }
 
+// BeforeJobRunsSkipIfBeforeFuncErrors 添加任务运行前的钩子函数（如果前置函数出错则跳过）
 func (c *CronJob) BeforeJobRunsSkipIfBeforeFuncErrors(eventListenerFunc func(jobID uuid.UUID, jobName string) error) *CronJob {
-	c.Hooks = gocron.BeforeJobRunsSkipIfBeforeFuncErrors(eventListenerFunc)
-	return c
+	return c.addHooks(gocron.BeforeJobRunsSkipIfBeforeFuncErrors(eventListenerFunc))
 }
 
+// AfterJobRuns 添加任务运行后的钩子函数
 func (c *CronJob) AfterJobRuns(eventListenerFunc func(jobID uuid.UUID, jobName string)) *CronJob {
-	c.Hooks = gocron.AfterJobRuns(eventListenerFunc)
-	return c
+	return c.addHooks(gocron.AfterJobRuns(eventListenerFunc))
 }
 
+// AfterJobRunsWithError 添加任务运行出错时的钩子函数
 func (c *CronJob) AfterJobRunsWithError(eventListenerFunc func(jobID uuid.UUID, jobName string, err error)) *CronJob {
-	c.Hooks = gocron.AfterJobRunsWithError(eventListenerFunc)
-	return c
+	return c.addHooks(gocron.AfterJobRunsWithError(eventListenerFunc))
 }
 
+// AfterJobRunsWithPanic 添加任务运行发生 panic 时的钩子函数
 func (c *CronJob) AfterJobRunsWithPanic(eventListenerFunc func(jobID uuid.UUID, jobName string, recoverData any)) *CronJob {
-	c.Hooks = gocron.AfterJobRunsWithPanic(eventListenerFunc)
-	return c
+	return c.addHooks(gocron.AfterJobRunsWithPanic(eventListenerFunc))
 }
 
+// AfterLockError 添加任务加锁出错时的钩子函数
 func (c *CronJob) AfterLockError(eventListenerFunc func(jobID uuid.UUID, jobName string, err error)) *CronJob {
-	c.Hooks = gocron.AfterLockError(eventListenerFunc)
-	return c
+	return c.addHooks(gocron.AfterLockError(eventListenerFunc))
 }
 
 type TimeType string

@@ -127,7 +127,7 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.CronJob(job.Expr, false),                 // 使用 cron 表达式
 		gocron.NewTask(job.TaskFunc, job.Parameters...), // 任务函数
-		gocron.WithEventListeners(job.Hooks),
+		gocron.WithEventListeners(job.Hooks...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)

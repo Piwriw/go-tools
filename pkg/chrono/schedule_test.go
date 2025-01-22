@@ -1,6 +1,7 @@
 package chrono
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -9,6 +10,35 @@ import (
 
 	"github.com/go-co-op/gocron/v2"
 )
+
+func TestDayTimeErrToCron(t *testing.T) {
+	scheduler, err := NewScheduler(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 Cron 任务
+	// Task with a parameter using a closure
+	task := func(a, b int) error {
+		fmt.Println("Task executed with parameters:", a, b)
+		return errors.New("some error")
+	}
+	cronJob := NewCronJob(DayTimeToCron(time.Now().Add(time.Minute*1))).
+		Task(task, 1, 2).
+		DefaultHooks()
+
+	job, err := scheduler.AddCronJob(cronJob)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	nextRun, err := job.NextRun()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
 
 func TestDayTimeToCron(t *testing.T) {
 	scheduler, err := NewScheduler(nil)
