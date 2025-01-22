@@ -2,6 +2,7 @@ package chrono
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -9,43 +10,78 @@ import (
 	"github.com/google/uuid"
 )
 
-type SchedulerMonitor struct {
-	mu      sync.Mutex
-	counter map[string]int
-	time    map[string][]time.Duration
+type defaultSchedulerMonitor struct {
+	mu       sync.Mutex
+	counter  map[string]int
+	time     map[string][]time.Duration
+	taskList map[uuid.UUID]MonitorTaskSpec
 }
 
-func NewSchedulerMonitor() *SchedulerMonitor {
-	return &SchedulerMonitor{
-		counter: make(map[string]int),
-		time:    make(map[string][]time.Duration),
+type MonitorTaskSpec struct {
+	TaskID    uuid.UUID
+	TaskName  string
+	StartTime time.Time
+	EndTime   time.Time
+	Status    gocron.JobStatus
+	Tags      []string
+	Err       error
+}
+
+func NewMonitorTaskSpec(id uuid.UUID, name string, startTime, endTime time.Time, tags []string, status gocron.JobStatus, err error) MonitorTaskSpec {
+	return MonitorTaskSpec{
+		TaskID:    id,
+		TaskName:  name,
+		StartTime: startTime,
+		EndTime:   endTime,
+		Status:    status,
+		Tags:      tags,
+		Err:       err,
 	}
 }
 
-func (t *SchedulerMonitor) IncrementJob(_ uuid.UUID, name string, _ []string, _ gocron.JobStatus) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	_, ok := t.counter[name]
+func newDefaultSchedulerMonitor() *defaultSchedulerMonitor {
+	return &defaultSchedulerMonitor{
+		counter:  make(map[string]int),
+		time:     make(map[string][]time.Duration),
+		taskList: make(map[uuid.UUID]MonitorTaskSpec),
+	}
+}
+
+func (s *defaultSchedulerMonitor) IncrementJob(id uuid.UUID, name string, tags []string, status gocron.JobStatus) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	slog.Info("IncrementJob", "JobID", id, "JobName", name, "tags", tags, "status", status)
+	_, ok := s.counter[name]
 	if !ok {
-		t.counter[name] = 0
+		s.counter[name] = 0
 	}
-	t.counter[name]++
+	s.counter[name]++
 }
 
-func (t *SchedulerMonitor) RecordJobTiming(startTime, endTime time.Time, _ uuid.UUID, name string, _ []string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	_, ok := t.time[name]
+func (s *defaultSchedulerMonitor) RecordJobTiming(startTime, endTime time.Time, id uuid.UUID, name string, tags []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	slog.Info("RecordJobTiming", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
+		"endTime", endTime.Format("2006-01-02 15:04:05"), "duration", endTime.Sub(startTime), "tags", tags)
+	_, ok := s.time[name]
 	if !ok {
-		t.time[name] = make([]time.Duration, 0)
+		s.time[name] = make([]time.Duration, 0)
 	}
-	t.time[name] = append(t.time[name], endTime.Sub(startTime))
+	s.time[name] = append(s.time[name], endTime.Sub(startTime))
+}
+
+func (s *defaultSchedulerMonitor) RecordJobTimingWithStatus(startTime, endTime time.Time, id uuid.UUID, name string, tags []string, status gocron.JobStatus, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	slog.Info("RecordJobTimingWithStatus", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
+		"endTime", endTime.Format("2006-01-02 15:04:05"), "duration", endTime.Sub(startTime), "status", status, "err", err)
+	s.taskList[id] = NewMonitorTaskSpec(id, name, startTime, endTime, tags, status, err)
 }
 
 // Scheduler 封装 gocron 的调度器
 type Scheduler struct {
 	scheduler gocron.Scheduler
-	monitor   *SchedulerMonitor
+	monitor   gocron.MonitorStatus
 }
 
 type Options struct {
@@ -53,13 +89,12 @@ type Options struct {
 }
 
 // NewScheduler creates a new scheduler.
-func NewScheduler(monitor *SchedulerMonitor) (*Scheduler, error) {
-
+func NewScheduler(monitor gocron.MonitorStatus) (*Scheduler, error) {
 	// 根据 monitor 是否为空来决定如何创建调度器
 	if monitor == nil {
-		monitor = NewSchedulerMonitor()
+		monitor = newDefaultSchedulerMonitor()
 	}
-	s, err := gocron.NewScheduler(gocron.WithMonitor(monitor))
+	s, err := gocron.NewScheduler(gocron.WithMonitorStatus(monitor))
 	// 错误处理
 	if err != nil {
 		return nil, fmt.Errorf("failed to create scheduler: %w", err)
