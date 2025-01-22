@@ -32,17 +32,17 @@ func NewScheduler(monitor SchedulerMonitor) (*Scheduler, error) {
 	}, nil
 }
 
-// Start 启动调度器
+// Start Starts the scheduler.
 func (s *Scheduler) Start() {
 	s.scheduler.Start()
 }
 
-// Stop 停止调度器
+// Stop Stops the scheduler.
 func (s *Scheduler) Stop() error {
 	return s.scheduler.Shutdown()
 }
 
-// RemoveJob 移除任务
+// RemoveJob Removes a job.
 func (s *Scheduler) RemoveJob(job gocron.Job) error {
 	return s.scheduler.RemoveJob(job.ID())
 }
@@ -83,12 +83,11 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	if job.err != nil {
 		return nil, job.err
 	}
-	// 检查任务函数是否存在
+	// check if job has a task function
 	if job.TaskFunc == nil {
 		return nil, fmt.Errorf("job %s has no task function", job.Name)
 	}
 
-	// 创建一个新的定时任务
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.CronJob(job.Expr, false),                 // 使用 cron 表达式
 		gocron.NewTask(job.TaskFunc, job.Parameters...), // 任务函数
@@ -100,6 +99,24 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	}
 
 	return jobInstance, nil
+}
+
+// AddCronJobs adds list new cron job.
+func (s *Scheduler) AddCronJobs(jobs ...*CronJob) ([]gocron.Job, error) {
+	var errs []error
+	jobList := make([]gocron.Job, 0, len(jobs))
+	for _, cronJob := range jobs {
+		cronJobInstance, err := s.AddCronJob(cronJob)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		jobList = append(jobList, cronJobInstance)
+	}
+	if len(errs) > 0 {
+		return jobList, fmt.Errorf("failed to add cron jobs: %v", errs)
+	}
+	return jobList, nil
 }
 
 func (s *Scheduler) AddCronJobWithOptions(job *CronJob, options ...gocron.JobOption) (gocron.Job, error) {
@@ -124,7 +141,7 @@ func (s *Scheduler) AddCronJobWithOptions(job *CronJob, options ...gocron.JobOpt
 	return jobInstance, nil
 }
 
-// AddOnceJob adds a new cron job.
+// AddOnceJob adds a new once job.
 func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.OneTimeJob(gocron.OneTimeJobStartDateTimes(job.WorkTime...)),
@@ -136,6 +153,24 @@ func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
 		return nil, fmt.Errorf("failed to add once job: %w", err)
 	}
 	return jobInstance, nil
+}
+
+// AddOnceJobs adds list new once job.
+func (s *Scheduler) AddOnceJobs(jobs ...*OnceJob) ([]gocron.Job, error) {
+	var errs []error
+	jobList := make([]gocron.Job, 0, len(jobs))
+	for _, onceJob := range jobs {
+		cronJobInstance, err := s.AddOnceJob(onceJob)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		jobList = append(jobList, cronJobInstance)
+	}
+	if len(errs) > 0 {
+		return jobList, fmt.Errorf("failed to add once jobs: %v", errs)
+	}
+	return jobList, nil
 }
 
 // AddIntervalJob 添加一个间隔任务
