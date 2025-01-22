@@ -17,7 +17,7 @@ func TestDayTimeToCron(t *testing.T) {
 	}
 	// 添加一个 Cron 任务
 	// Task with a parameter using a closure
-	task := func() {
+	task := func(a, b int) {
 		jobs, err := scheduler.GetJobs()
 		if err != nil {
 			fmt.Println(err)
@@ -47,16 +47,20 @@ func TestDayTimeToCron(t *testing.T) {
 			// 记录任务执行时间
 			scheduler.monitor.RecordJobTiming(startTime, endTime, jobID, jobName, nil)
 		}
+		fmt.Println("Task executed with parameters:", a, b)
 
 	}
-	cronJob := NewCronJob(DayTimeToCron(time.Now().Add(time.Minute * 1))).
-		Task(task).
+	cronJob := NewCronJob(DayTimeToCron(time.Now().Add(time.Minute*1))).
+		Task(task, 1, 2).
 		AfterJobRuns(func(jobID uuid.UUID, jobName string) {
 			fmt.Println("AfterJobRuns")
 		}).
 		BeforeJobRuns(func(jobID uuid.UUID, jobName string) {
 			fmt.Println("BeforeJobRuns")
-		})
+		}).AfterJobRunsWithError(func(jobID uuid.UUID, jobName string, err error) {
+		fmt.Println("AfterJobRuns")
+	})
+
 	job, err := scheduler.AddCronJob(cronJob)
 
 	if err != nil {

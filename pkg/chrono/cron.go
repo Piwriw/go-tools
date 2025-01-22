@@ -15,11 +15,12 @@ const (
 )
 
 type CronJob struct {
-	Name     string
-	Expr     string
-	TaskFunc func()
-	Hooks    gocron.EventListener
-	err      error
+	Name       string
+	Expr       string
+	TaskFunc   any
+	Parameters []any
+	Hooks      gocron.EventListener
+	err        error
 }
 
 func NewCronJob(expr string) *CronJob {
@@ -40,11 +41,12 @@ func (c *CronJob) Names(name string) *CronJob {
 	return c
 }
 
-func (c *CronJob) Task(task func()) *CronJob {
+func (c *CronJob) Task(task any, parameters ...any) *CronJob {
 	if task == nil {
 		c.err = fmt.Errorf("%w; wrong task: task function cannot be nil", c.err)
 	}
 	c.TaskFunc = task
+	c.Parameters = append(c.Parameters, parameters...)
 	return c
 }
 
