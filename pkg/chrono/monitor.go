@@ -85,5 +85,4 @@ func (s *defaultSchedulerMonitor) RecordJobTimingWithStatus(startTime, endTime t
 }
 
 func (s *defaultSchedulerMonitor) Watch() {
-	s.taskList
 }

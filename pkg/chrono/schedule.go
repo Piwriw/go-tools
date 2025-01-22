@@ -187,17 +187,22 @@ func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
 	return jobInstance, nil
 }
 
-// AddIntervalJobWithName 添加一个间隔任务,支持任务名称
-func (s *Scheduler) AddIntervalJobWithName(interval time.Duration, task func(), name string) (gocron.Job, error) {
-	job, err := s.scheduler.NewJob(
-		gocron.DurationJob(interval), // 使用时间间隔
-		gocron.NewTask(task),         // 任务函数
-		gocron.WithName(name),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add job: %w", err)
+// AddIntervalJobs adds list new interval job.
+func (s *Scheduler) AddIntervalJobs(jobs ...*IntervalJob) ([]gocron.Job, error) {
+	var errs []error
+	jobList := make([]gocron.Job, 0, len(jobs))
+	for _, intervalJob := range jobs {
+		intervalJobInstance, err := s.AddIntervalJob(intervalJob)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		jobList = append(jobList, intervalJobInstance)
 	}
-	return job, nil
+	if len(errs) > 0 {
+		return jobList, fmt.Errorf("failed to add interval jobs: %v", errs)
+	}
+	return jobList, nil
 }
 
 // AddIntervalJobWithOptions 添加一个间隔任务,支持原生拓展方法
@@ -208,7 +213,52 @@ func (s *Scheduler) AddIntervalJobWithOptions(interval time.Duration, task func(
 		options...,
 	)
 	if err != nil {
+		return nil, fmt.Errorf("failed to add interval job: %w", err)
+	}
+	return job, nil
+}
+
+// AddDailyJob add daily Job
+func (s *Scheduler) AddDailyJob(job *DailyJob) (gocron.Job, error) {
+	jobInstance, err := s.scheduler.NewJob(
+		gocron.DailyJob(job.Interval, job.AtTimes),
+		gocron.NewTask(job.TaskFunc, job.Parameters...),
+		gocron.WithEventListeners(job.Hooks...),
+		gocron.WithName(job.Name),
+	)
+	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
+	}
+	return jobInstance, nil
+}
+
+// AddDailyJobs adds list new interval job.
+func (s *Scheduler) AddDailyJobs(jobs ...*IntervalJob) ([]gocron.Job, error) {
+	var errs []error
+	jobList := make([]gocron.Job, 0, len(jobs))
+	for _, intervalJob := range jobs {
+		intervalJobInstance, err := s.AddIntervalJob(intervalJob)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		jobList = append(jobList, intervalJobInstance)
+	}
+	if len(errs) > 0 {
+		return jobList, fmt.Errorf("failed to add interval jobs: %v", errs)
+	}
+	return jobList, nil
+}
+
+// AddDailyJobWithOptions 添加一个间隔任务,支持原生拓展方法
+func (s *Scheduler) AddDailyJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
+	job, err := s.scheduler.NewJob(
+		gocron.DurationJob(interval), // 使用时间间隔
+		gocron.NewTask(task),         // 任务函数
+		options...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add interval job: %w", err)
 	}
 	return job, nil
 }
