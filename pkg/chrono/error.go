@@ -3,6 +3,6 @@ package chrono
 import "errors"
 
 var (
-	ErrInvalidTask = errors.New("invalid task")
+	ErrInvalidJob  = errors.New("invalid job")
 	ErrTaskFuncNil = errors.New("task function cannot be nil")
 )

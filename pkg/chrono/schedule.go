@@ -84,7 +84,7 @@ func (s *Scheduler) GetJobByID(jobID string) (gocron.Job, error) {
 // AddCronJob adds a new cron job.
 func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	if job == nil {
-		return nil, ErrTaskFuncNil
+		return nil, ErrInvalidJob
 	}
 	if job.err != nil {
 		return nil, job.err
@@ -127,7 +127,7 @@ func (s *Scheduler) AddCronJobs(jobs ...*CronJob) ([]gocron.Job, error) {
 
 func (s *Scheduler) AddCronJobWithOptions(job *CronJob, options ...gocron.JobOption) (gocron.Job, error) {
 	if job == nil {
-		return nil, ErrTaskFuncNil
+		return nil, ErrInvalidJob
 	}
 	if job.err != nil {
 		return nil, job.err
@@ -150,7 +150,7 @@ func (s *Scheduler) AddCronJobWithOptions(job *CronJob, options ...gocron.JobOpt
 // AddOnceJob adds a new once job.
 func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
 	if job == nil {
-		return nil, ErrTaskFuncNil
+		return nil, ErrInvalidJob
 	}
 	if job.err != nil {
 		return nil, job.err
@@ -205,7 +205,7 @@ func (s *Scheduler) AddOnceJobWithOptions(startAt gocron.OneTimeJobStartAtOption
 // AddIntervalJob 添加一个间隔任务
 func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
 	if job == nil {
-		return nil, ErrTaskFuncNil
+		return nil, ErrInvalidJob
 	}
 	if job.err != nil {
 		return nil, job.err
@@ -315,7 +315,7 @@ func (s *Scheduler) AddDailyJobWithOptions(interval uint, atTimes gocron.AtTimes
 // AddWeeklyJob add weekly Job
 func (s *Scheduler) AddWeeklyJob(job *WeeklyJob) (gocron.Job, error) {
 	if job == nil {
-		return nil, ErrTaskFuncNil
+		return nil, ErrInvalidJob
 	}
 	if job.err != nil {
 		return nil, job.err
@@ -370,7 +370,7 @@ func (s *Scheduler) AddWeeklyJobWithOptions(interval uint, daysOfTheWeek gocron.
 // AddMonthlyJob add monthly Job
 func (s *Scheduler) AddMonthlyJob(job *MonthJob) (gocron.Job, error) {
 	if job == nil {
-		return nil, ErrTaskFuncNil
+		return nil, ErrInvalidJob
 	}
 	if job.err != nil {
 		return nil, job.err
