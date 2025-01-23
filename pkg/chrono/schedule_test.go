@@ -10,6 +10,31 @@ import (
 	"github.com/google/uuid"
 )
 
+func TestMonthlyJob(t *testing.T) {
+	scheduler, err := NewScheduler(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := func(a, b int) error {
+		fmt.Println("Task executed with parameters:", a, b)
+		return nil
+	}
+	monthlyJob := NewMonthJob(1, gocron.NewDaysOfTheMonth(23), gocron.NewAtTimes(gocron.NewAtTime(11, 43, 3))).
+		Names("TestMonthlyJob").
+		Task(task, 1, 2)
+
+	job, err := scheduler.AddMonthlyJob(monthlyJob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	nextRun, err := job.NextRun()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
 func TestWeeklyJob(t *testing.T) {
 	scheduler, err := NewScheduler(nil)
 	if err != nil {

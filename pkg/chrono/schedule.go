@@ -253,8 +253,8 @@ func (s *Scheduler) AddDailyJobs(jobs ...*DailyJob) ([]gocron.Job, error) {
 // AddDailyJobWithOptions add a daily job, support native extension method
 func (s *Scheduler) AddDailyJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
-		gocron.DurationJob(interval), // 使用时间间隔
-		gocron.NewTask(task),         // 任务函数
+		gocron.DurationJob(interval),
+		gocron.NewTask(task),
 		options...,
 	)
 	if err != nil {
@@ -298,12 +298,57 @@ func (s *Scheduler) AddWeeklyJobs(jobs ...*WeeklyJob) ([]gocron.Job, error) {
 // AddWeeklyJobWithOptions add a weekly job, support native extension method
 func (s *Scheduler) AddWeeklyJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
-		gocron.DurationJob(interval), // 使用时间间隔
-		gocron.NewTask(task),         // 任务函数
+		gocron.DurationJob(interval),
+		gocron.NewTask(task),
 		options...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add weekly job: %w", err)
+	}
+	return job, nil
+}
+
+// AddMonthlyJob add monthly Job
+func (s *Scheduler) AddMonthlyJob(job *MonthJob) (gocron.Job, error) {
+	jobInstance, err := s.scheduler.NewJob(
+		gocron.MonthlyJob(job.Interval, job.DaysOfTheMonth, job.AtTimes),
+		gocron.NewTask(job.TaskFunc, job.Parameters...),
+		gocron.WithEventListeners(job.Hooks...),
+		gocron.WithName(job.Name),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add monthly job: %w", err)
+	}
+	return jobInstance, nil
+}
+
+// AddMonthlyJobs adds list new Monthly job.
+func (s *Scheduler) AddMonthlyJobs(jobs ...*MonthJob) ([]gocron.Job, error) {
+	var errs []error
+	jobList := make([]gocron.Job, 0, len(jobs))
+	for _, monthlyJob := range jobs {
+		dailyJobInstance, err := s.AddMonthlyJob(monthlyJob)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		jobList = append(jobList, dailyJobInstance)
+	}
+	if len(errs) > 0 {
+		return jobList, fmt.Errorf("failed to add monthly jobs: %v", errs)
+	}
+	return jobList, nil
+}
+
+// AddMonthlyJobWithOptions add a monthly job, support native extension method
+func (s *Scheduler) AddMonthlyJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
+	job, err := s.scheduler.NewJob(
+		gocron.DurationJob(interval),
+		gocron.NewTask(task),
+		options...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add monthly job: %w", err)
 	}
 	return job, nil
 }
