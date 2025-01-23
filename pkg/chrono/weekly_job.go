@@ -1,7 +1,7 @@
 package chrono
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
@@ -36,7 +36,8 @@ func (c *WeeklyJob) Names(name string) *WeeklyJob {
 
 func (c *WeeklyJob) Task(task any, parameters ...any) *WeeklyJob {
 	if task == nil {
-		c.err = fmt.Errorf("%w: %s", c.err, ErrTaskFuncNil)
+		c.err = errors.Join(c.err, ErrTaskFuncNil)
+		return c
 	}
 	c.TaskFunc = task
 	c.Parameters = append(c.Parameters, parameters...)

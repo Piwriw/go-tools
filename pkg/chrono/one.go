@@ -1,7 +1,7 @@
 package chrono
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -33,7 +33,8 @@ func (c *OnceJob) Names(name string) *OnceJob {
 
 func (c *OnceJob) Task(task any, parameters ...any) *OnceJob {
 	if task == nil {
-		c.err = fmt.Errorf("%w: %s", c.err, ErrTaskFuncNil)
+		c.err = errors.Join(c.err, ErrTaskFuncNil)
+		return c
 	}
 	c.TaskFunc = task
 	c.Parameters = append(c.Parameters, parameters...)
