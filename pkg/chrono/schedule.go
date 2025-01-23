@@ -10,9 +10,27 @@ import (
 
 // Scheduler 封装 gocron 的调度器
 type Scheduler struct {
-	ctx       context.Context
-	scheduler gocron.Scheduler
-	monitor   SchedulerMonitor
+	ctx          context.Context
+	scheduler    gocron.Scheduler
+	monitor      SchedulerMonitor
+	watchFuncMap map[string]Watch
+}
+
+type Watch interface {
+	Stop()
+	ResultChan() <-chan Event
+}
+
+type Event struct {
+	JobID       string
+	JobName     string
+	NextRunTime time.Time
+	LastTime    time.Time
+	Err         error
+}
+
+func (s *Scheduler) Watch() {
+
 }
 
 // NewScheduler creates a new scheduler.
@@ -51,10 +69,6 @@ func (s *Scheduler) Stop() error {
 // RemoveJob Removes a job.
 func (s *Scheduler) RemoveJob(job gocron.Job) error {
 	return s.scheduler.RemoveJob(job.ID())
-}
-
-func (s *Scheduler) Watch() {
-	s.monitor.Watch(s.ctx)
 }
 
 // GetJobs add all Jobs

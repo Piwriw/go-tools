@@ -1,7 +1,6 @@
 package chrono
 
 import (
-	"context"
 	"log/slog"
 	"sync"
 	"time"
@@ -12,18 +11,18 @@ import (
 
 type SchedulerMonitor interface {
 	gocron.MonitorStatus
-	Watch(ctx context.Context)
+	Watch() chan MonitorJobSpec
 }
 type defaultSchedulerMonitor struct {
-	mu       sync.Mutex
-	counter  map[string]int
-	time     map[string][]time.Duration
-	taskChan chan MonitorTaskSpec
+	mu      sync.Mutex
+	counter map[string]int
+	time    map[string][]time.Duration
+	jobChan chan MonitorJobSpec
 }
 
-type MonitorTaskSpec struct {
-	TaskID    uuid.UUID
-	TaskName  string
+type MonitorJobSpec struct {
+	JobID     uuid.UUID
+	JobName   string
 	StartTime time.Time
 	EndTime   time.Time
 	Status    gocron.JobStatus
@@ -31,10 +30,10 @@ type MonitorTaskSpec struct {
 	Err       error
 }
 
-func NewMonitorTaskSpec(id uuid.UUID, name string, startTime, endTime time.Time, tags []string, status gocron.JobStatus, err error) MonitorTaskSpec {
-	return MonitorTaskSpec{
-		TaskID:    id,
-		TaskName:  name,
+func NewMonitorJobSpec(id uuid.UUID, name string, startTime, endTime time.Time, tags []string, status gocron.JobStatus, err error) MonitorJobSpec {
+	return MonitorJobSpec{
+		JobID:     id,
+		JobName:   name,
 		StartTime: startTime,
 		EndTime:   endTime,
 		Status:    status,
@@ -45,9 +44,9 @@ func NewMonitorTaskSpec(id uuid.UUID, name string, startTime, endTime time.Time,
 
 func newDefaultSchedulerMonitor() *defaultSchedulerMonitor {
 	return &defaultSchedulerMonitor{
-		counter:  make(map[string]int),
-		time:     make(map[string][]time.Duration),
-		taskChan: make(chan MonitorTaskSpec, 100),
+		counter: make(map[string]int),
+		time:    make(map[string][]time.Duration),
+		jobChan: make(chan MonitorJobSpec, 100),
 	}
 }
 
@@ -82,20 +81,21 @@ func (s *defaultSchedulerMonitor) RecordJobTimingWithStatus(startTime, endTime t
 	defer s.mu.Unlock()
 	slog.Debug("RecordJobTimingWithStatus", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
 		"endTime", endTime.Format("2006-01-02 15:04:05"), "duration", endTime.Sub(startTime), "status", status, "err", err)
-	taskSpec := NewMonitorTaskSpec(id, name, startTime, endTime, tags, status, err)
-	s.taskChan <- taskSpec
+	jobSpec := NewMonitorJobSpec(id, name, startTime, endTime, tags, status, err)
+	s.jobChan <- jobSpec
 }
 
 // Watch 监听任务的执行情况
-func (s *defaultSchedulerMonitor) Watch(ctx context.Context) {
-	for {
-		select {
-		case taskSpec := <-s.taskChan:
-			slog.Info("Watch", "taskSpec", taskSpec)
-			// 在这里可以添加更多的处理逻辑
-		case <-ctx.Done():
-			slog.Info("Watch stopped")
-			return
-		}
-	}
+func (s *defaultSchedulerMonitor) Watch() chan MonitorJobSpec {
+	return s.jobChan
+	// for {
+	// 	select {
+	// 	case taskSpec := <-s.taskChan:
+	// 		slog.Info("Watch", "taskSpec", taskSpec)
+	// 		// 在这里可以添加更多的处理逻辑
+	// 	case <-ctx.Done():
+	// 		slog.Info("Watch stopped")
+	// 		return
+	// 	}
+	// }
 }
