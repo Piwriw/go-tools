@@ -233,19 +233,19 @@ func (s *Scheduler) AddDailyJob(job *DailyJob) (gocron.Job, error) {
 }
 
 // AddDailyJobs adds list new interval job.
-func (s *Scheduler) AddDailyJobs(jobs ...*IntervalJob) ([]gocron.Job, error) {
+func (s *Scheduler) AddDailyJobs(jobs ...*DailyJob) ([]gocron.Job, error) {
 	var errs []error
 	jobList := make([]gocron.Job, 0, len(jobs))
-	for _, intervalJob := range jobs {
-		intervalJobInstance, err := s.AddIntervalJob(intervalJob)
+	for _, dailyJob := range jobs {
+		dailyJobInstance, err := s.AddDailyJob(dailyJob)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
-		jobList = append(jobList, intervalJobInstance)
+		jobList = append(jobList, dailyJobInstance)
 	}
 	if len(errs) > 0 {
-		return jobList, fmt.Errorf("failed to add interval jobs: %v", errs)
+		return jobList, fmt.Errorf("failed to add daily jobs: %v", errs)
 	}
 	return jobList, nil
 }

@@ -17,9 +17,10 @@ type DailyJob struct {
 	err        error
 }
 
-func NewDailyJob(interval uint) *DailyJob {
+func NewDailyJob(interval uint, atTime gocron.AtTimes) *DailyJob {
 	return &DailyJob{
 		Interval: interval,
+		AtTimes:  atTime,
 	}
 }
 
