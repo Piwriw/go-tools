@@ -1,6 +1,7 @@
 package chrono
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -43,7 +44,8 @@ func (c *CronJob) Names(name string) *CronJob {
 
 func (c *CronJob) Task(task any, parameters ...any) *CronJob {
 	if task == nil {
-		c.err = fmt.Errorf("%w; wrong task: task function cannot be nil", c.err)
+		c.err = errors.Join(c.err, ErrTaskFuncNil)
+		return c
 	}
 	c.TaskFunc = task
 	c.Parameters = append(c.Parameters, parameters...)
