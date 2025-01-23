@@ -250,7 +250,7 @@ func (s *Scheduler) AddDailyJobs(jobs ...*DailyJob) ([]gocron.Job, error) {
 	return jobList, nil
 }
 
-// AddDailyJobWithOptions 添加一个间隔任务,支持原生拓展方法
+// AddDailyJobWithOptions add a daily job, support native extension method
 func (s *Scheduler) AddDailyJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
 		gocron.DurationJob(interval), // 使用时间间隔
@@ -258,7 +258,52 @@ func (s *Scheduler) AddDailyJobWithOptions(interval time.Duration, task func(), 
 		options...,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add interval job: %w", err)
+		return nil, fmt.Errorf("failed to add daily job: %w", err)
+	}
+	return job, nil
+}
+
+// AddWeeklyJob add weekly Job
+func (s *Scheduler) AddWeeklyJob(job *WeeklyJob) (gocron.Job, error) {
+	jobInstance, err := s.scheduler.NewJob(
+		gocron.WeeklyJob(job.Interval, job.DaysOfTheWeek, job.AtTimes),
+		gocron.NewTask(job.TaskFunc, job.Parameters...),
+		gocron.WithEventListeners(job.Hooks...),
+		gocron.WithName(job.Name),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add weekly job: %w", err)
+	}
+	return jobInstance, nil
+}
+
+// AddWeeklyJobs adds list new Weekly job.
+func (s *Scheduler) AddWeeklyJobs(jobs ...*WeeklyJob) ([]gocron.Job, error) {
+	var errs []error
+	jobList := make([]gocron.Job, 0, len(jobs))
+	for _, weeklyJob := range jobs {
+		dailyJobInstance, err := s.AddWeeklyJob(weeklyJob)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		jobList = append(jobList, dailyJobInstance)
+	}
+	if len(errs) > 0 {
+		return jobList, fmt.Errorf("failed to add weekly jobs: %v", errs)
+	}
+	return jobList, nil
+}
+
+// AddWeeklyJobWithOptions add a weekly job, support native extension method
+func (s *Scheduler) AddWeeklyJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
+	job, err := s.scheduler.NewJob(
+		gocron.DurationJob(interval), // 使用时间间隔
+		gocron.NewTask(task),         // 任务函数
+		options...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add weekly job: %w", err)
 	}
 	return job, nil
 }
