@@ -78,7 +78,7 @@ func (s *Scheduler) GetJobByID(jobID string) (gocron.Job, error) {
 // AddCronJob adds a new cron job.
 func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	if job == nil {
-		return nil, fmt.Errorf("job cannot be nil")
+		return nil, ErrTaskFuncNil
 	}
 	if job.err != nil {
 		return nil, job.err
@@ -121,7 +121,7 @@ func (s *Scheduler) AddCronJobs(jobs ...*CronJob) ([]gocron.Job, error) {
 
 func (s *Scheduler) AddCronJobWithOptions(job *CronJob, options ...gocron.JobOption) (gocron.Job, error) {
 	if job == nil {
-		return nil, fmt.Errorf("job cannot be nil")
+		return nil, ErrTaskFuncNil
 	}
 	if job.err != nil {
 		return nil, job.err
@@ -143,6 +143,16 @@ func (s *Scheduler) AddCronJobWithOptions(job *CronJob, options ...gocron.JobOpt
 
 // AddOnceJob adds a new once job.
 func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
+	if job == nil {
+		return nil, ErrTaskFuncNil
+	}
+	if job.err != nil {
+		return nil, job.err
+	}
+	// 检查任务函数是否存在
+	if job.TaskFunc == nil {
+		return nil, fmt.Errorf("job %s has no task function", job.Name)
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.OneTimeJob(gocron.OneTimeJobStartDateTimes(job.WorkTime...)),
 		gocron.NewTask(job.TaskFunc, job.Parameters...), // 任务函数
@@ -173,8 +183,31 @@ func (s *Scheduler) AddOnceJobs(jobs ...*OnceJob) ([]gocron.Job, error) {
 	return jobList, nil
 }
 
+// AddOnceJobWithOptions add a once job, support native extension method
+func (s *Scheduler) AddOnceJobWithOptions(startAt gocron.OneTimeJobStartAtOption, task any, options ...gocron.JobOption) (gocron.Job, error) {
+	job, err := s.scheduler.NewJob(
+		gocron.OneTimeJob(startAt),
+		gocron.NewTask(task),
+		options...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add once job: %w", err)
+	}
+	return job, nil
+}
+
 // AddIntervalJob 添加一个间隔任务
 func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
+	if job == nil {
+		return nil, ErrTaskFuncNil
+	}
+	if job.err != nil {
+		return nil, job.err
+	}
+	// 检查任务函数是否存在
+	if job.TaskFunc == nil {
+		return nil, fmt.Errorf("job %s has no task function", job.Name)
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.DurationJob(job.Interval),
 		gocron.NewTask(job.TaskFunc, job.Parameters...),
@@ -205,11 +238,11 @@ func (s *Scheduler) AddIntervalJobs(jobs ...*IntervalJob) ([]gocron.Job, error) 
 	return jobList, nil
 }
 
-// AddIntervalJobWithOptions 添加一个间隔任务,支持原生拓展方法
-func (s *Scheduler) AddIntervalJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
+// AddIntervalJobWithOptions add a interval job, support native extension method
+func (s *Scheduler) AddIntervalJobWithOptions(interval time.Duration, task any, options ...gocron.JobOption) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
-		gocron.DurationJob(interval), // 使用时间间隔
-		gocron.NewTask(task),         // 任务函数
+		gocron.DurationJob(interval),
+		gocron.NewTask(task),
 		options...,
 	)
 	if err != nil {
@@ -220,6 +253,16 @@ func (s *Scheduler) AddIntervalJobWithOptions(interval time.Duration, task func(
 
 // AddDailyJob add daily Job
 func (s *Scheduler) AddDailyJob(job *DailyJob) (gocron.Job, error) {
+	if job == nil {
+		return nil, ErrTaskFuncNil
+	}
+	if job.err != nil {
+		return nil, job.err
+	}
+	// 检查任务函数是否存在
+	if job.TaskFunc == nil {
+		return nil, fmt.Errorf("job %s has no task function", job.Name)
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.DailyJob(job.Interval, job.AtTimes),
 		gocron.NewTask(job.TaskFunc, job.Parameters...),
@@ -251,9 +294,9 @@ func (s *Scheduler) AddDailyJobs(jobs ...*DailyJob) ([]gocron.Job, error) {
 }
 
 // AddDailyJobWithOptions add a daily job, support native extension method
-func (s *Scheduler) AddDailyJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
+func (s *Scheduler) AddDailyJobWithOptions(interval uint, atTimes gocron.AtTimes, task any, options ...gocron.JobOption) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
-		gocron.DurationJob(interval),
+		gocron.DailyJob(interval, atTimes),
 		gocron.NewTask(task),
 		options...,
 	)
@@ -265,6 +308,16 @@ func (s *Scheduler) AddDailyJobWithOptions(interval time.Duration, task func(), 
 
 // AddWeeklyJob add weekly Job
 func (s *Scheduler) AddWeeklyJob(job *WeeklyJob) (gocron.Job, error) {
+	if job == nil {
+		return nil, ErrTaskFuncNil
+	}
+	if job.err != nil {
+		return nil, job.err
+	}
+	// 检查任务函数是否存在
+	if job.TaskFunc == nil {
+		return nil, fmt.Errorf("job %s has no task function", job.Name)
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.WeeklyJob(job.Interval, job.DaysOfTheWeek, job.AtTimes),
 		gocron.NewTask(job.TaskFunc, job.Parameters...),
@@ -296,9 +349,9 @@ func (s *Scheduler) AddWeeklyJobs(jobs ...*WeeklyJob) ([]gocron.Job, error) {
 }
 
 // AddWeeklyJobWithOptions add a weekly job, support native extension method
-func (s *Scheduler) AddWeeklyJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
+func (s *Scheduler) AddWeeklyJobWithOptions(interval uint, daysOfTheWeek gocron.Weekdays, atTimes gocron.AtTimes, task any, options ...gocron.JobOption) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
-		gocron.DurationJob(interval),
+		gocron.WeeklyJob(interval, daysOfTheWeek, atTimes),
 		gocron.NewTask(task),
 		options...,
 	)
@@ -310,6 +363,16 @@ func (s *Scheduler) AddWeeklyJobWithOptions(interval time.Duration, task func(),
 
 // AddMonthlyJob add monthly Job
 func (s *Scheduler) AddMonthlyJob(job *MonthJob) (gocron.Job, error) {
+	if job == nil {
+		return nil, ErrTaskFuncNil
+	}
+	if job.err != nil {
+		return nil, job.err
+	}
+	// 检查任务函数是否存在
+	if job.TaskFunc == nil {
+		return nil, fmt.Errorf("job %s has no task function", job.Name)
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.MonthlyJob(job.Interval, job.DaysOfTheMonth, job.AtTimes),
 		gocron.NewTask(job.TaskFunc, job.Parameters...),
@@ -341,9 +404,9 @@ func (s *Scheduler) AddMonthlyJobs(jobs ...*MonthJob) ([]gocron.Job, error) {
 }
 
 // AddMonthlyJobWithOptions add a monthly job, support native extension method
-func (s *Scheduler) AddMonthlyJobWithOptions(interval time.Duration, task func(), options ...gocron.JobOption) (gocron.Job, error) {
+func (s *Scheduler) AddMonthlyJobWithOptions(interval uint, daysOfTheMonth gocron.DaysOfTheMonth, atTimes gocron.AtTimes, task any, options ...gocron.JobOption) (gocron.Job, error) {
 	job, err := s.scheduler.NewJob(
-		gocron.DurationJob(interval),
+		gocron.MonthlyJob(interval, daysOfTheMonth, atTimes),
 		gocron.NewTask(task),
 		options...,
 	)
