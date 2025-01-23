@@ -1,6 +1,7 @@
 package chrono
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 	"time"
@@ -11,13 +12,13 @@ import (
 
 type SchedulerMonitor interface {
 	gocron.MonitorStatus
-	Watch()
+	Watch(ctx context.Context)
 }
 type defaultSchedulerMonitor struct {
 	mu       sync.Mutex
 	counter  map[string]int
 	time     map[string][]time.Duration
-	taskList map[uuid.UUID]MonitorTaskSpec
+	taskChan chan MonitorTaskSpec
 }
 
 type MonitorTaskSpec struct {
@@ -46,7 +47,7 @@ func newDefaultSchedulerMonitor() *defaultSchedulerMonitor {
 	return &defaultSchedulerMonitor{
 		counter:  make(map[string]int),
 		time:     make(map[string][]time.Duration),
-		taskList: make(map[uuid.UUID]MonitorTaskSpec),
+		taskChan: make(chan MonitorTaskSpec, 100),
 	}
 }
 
@@ -54,7 +55,7 @@ func newDefaultSchedulerMonitor() *defaultSchedulerMonitor {
 func (s *defaultSchedulerMonitor) IncrementJob(id uuid.UUID, name string, tags []string, status gocron.JobStatus) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	slog.Info("IncrementJob", "JobID", id, "JobName", name, "tags", tags, "status", status)
+	slog.Debug("IncrementJob", "JobID", id, "JobName", name, "tags", tags, "status", status)
 	_, ok := s.counter[name]
 	if !ok {
 		s.counter[name] = 0
@@ -66,7 +67,7 @@ func (s *defaultSchedulerMonitor) IncrementJob(id uuid.UUID, name string, tags [
 func (s *defaultSchedulerMonitor) RecordJobTiming(startTime, endTime time.Time, id uuid.UUID, name string, tags []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	slog.Info("RecordJobTiming", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
+	slog.Debug("RecordJobTiming", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
 		"endTime", endTime.Format("2006-01-02 15:04:05"), "duration", endTime.Sub(startTime), "tags", tags)
 	_, ok := s.time[name]
 	if !ok {
@@ -79,10 +80,22 @@ func (s *defaultSchedulerMonitor) RecordJobTiming(startTime, endTime time.Time, 
 func (s *defaultSchedulerMonitor) RecordJobTimingWithStatus(startTime, endTime time.Time, id uuid.UUID, name string, tags []string, status gocron.JobStatus, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	slog.Info("RecordJobTimingWithStatus", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
+	slog.Debug("RecordJobTimingWithStatus", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
 		"endTime", endTime.Format("2006-01-02 15:04:05"), "duration", endTime.Sub(startTime), "status", status, "err", err)
-	s.taskList[id] = NewMonitorTaskSpec(id, name, startTime, endTime, tags, status, err)
+	taskSpec := NewMonitorTaskSpec(id, name, startTime, endTime, tags, status, err)
+	s.taskChan <- taskSpec
 }
 
-func (s *defaultSchedulerMonitor) Watch() {
+// Watch 监听任务的执行情况
+func (s *defaultSchedulerMonitor) Watch(ctx context.Context) {
+	for {
+		select {
+		case taskSpec := <-s.taskChan:
+			slog.Info("Watch", "taskSpec", taskSpec)
+			// 在这里可以添加更多的处理逻辑
+		case <-ctx.Done():
+			slog.Info("Watch stopped")
+			return
+		}
+	}
 }

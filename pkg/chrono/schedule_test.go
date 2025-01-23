@@ -11,7 +11,7 @@ import (
 )
 
 func TestMonthlyJob(t *testing.T) {
-	scheduler, err := NewScheduler(nil)
+	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestMonthlyJob(t *testing.T) {
 	}
 }
 func TestWeeklyJob(t *testing.T) {
-	scheduler, err := NewScheduler(nil)
+	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestWeeklyJob(t *testing.T) {
 	}
 }
 func TestDailyJob(t *testing.T) {
-	scheduler, err := NewScheduler(nil)
+	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestDailyJob(t *testing.T) {
 }
 
 func TestIntervalJob(t *testing.T) {
-	scheduler, err := NewScheduler(nil)
+	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestIntervalJob(t *testing.T) {
 }
 
 func TestOnceJob(t *testing.T) {
-	scheduler, err := NewScheduler(nil)
+	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func TestOnceJob(t *testing.T) {
 }
 
 func TestMonitor(t *testing.T) {
-	scheduler, err := NewScheduler(nil)
+	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,6 +162,7 @@ func TestMonitor(t *testing.T) {
 	}
 	scheduler.Start()
 	nextRun, err := job.NextRun()
+	go scheduler.Watch()
 	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
 	// block until you are ready to shut down
 	select {
@@ -170,7 +171,7 @@ func TestMonitor(t *testing.T) {
 }
 
 func TestDefaultHooks(t *testing.T) {
-	scheduler, err := NewScheduler(nil)
+	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +200,7 @@ func TestDefaultHooks(t *testing.T) {
 }
 
 func TestDayTimeToCron(t *testing.T) {
-	scheduler, err := NewScheduler(nil)
+	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

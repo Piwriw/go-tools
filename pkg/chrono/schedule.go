@@ -1,6 +1,7 @@
 package chrono
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -9,12 +10,16 @@ import (
 
 // Scheduler 封装 gocron 的调度器
 type Scheduler struct {
+	ctx       context.Context
 	scheduler gocron.Scheduler
 	monitor   SchedulerMonitor
 }
 
 // NewScheduler creates a new scheduler.
-func NewScheduler(monitor SchedulerMonitor) (*Scheduler, error) {
+func NewScheduler(ctx context.Context, monitor SchedulerMonitor) (*Scheduler, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	// 根据 monitor 是否为空来决定如何创建调度器
 	if monitor == nil {
 		monitor = newDefaultSchedulerMonitor()
@@ -29,6 +34,7 @@ func NewScheduler(monitor SchedulerMonitor) (*Scheduler, error) {
 	return &Scheduler{
 		scheduler: s,
 		monitor:   monitor,
+		ctx:       ctx,
 	}, nil
 }
 
@@ -48,7 +54,7 @@ func (s *Scheduler) RemoveJob(job gocron.Job) error {
 }
 
 func (s *Scheduler) Watch() {
-	s.monitor.Watch()
+	s.monitor.Watch(s.ctx)
 }
 
 // GetJobs add all Jobs
