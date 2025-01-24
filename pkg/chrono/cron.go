@@ -21,6 +21,7 @@ type CronJob struct {
 	TaskFunc   any
 	Parameters []any
 	Hooks      []gocron.EventListener
+	WatchFunc  func(event MonitorJobSpec)
 	err        error
 }
 
@@ -49,6 +50,11 @@ func (c *CronJob) Task(task any, parameters ...any) *CronJob {
 	}
 	c.TaskFunc = task
 	c.Parameters = append(c.Parameters, parameters...)
+	return c
+}
+
+func (c *CronJob) Watch(watch func(event MonitorJobSpec)) *CronJob {
+	c.WatchFunc = watch
 	return c
 }
 

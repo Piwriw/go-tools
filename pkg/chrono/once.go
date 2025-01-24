@@ -14,6 +14,7 @@ type OnceJob struct {
 	TaskFunc   any
 	Parameters []any
 	Hooks      []gocron.EventListener
+	WatchFunc  func(event MonitorJobSpec)
 	err        error
 }
 
@@ -38,6 +39,11 @@ func (c *OnceJob) Task(task any, parameters ...any) *OnceJob {
 	}
 	c.TaskFunc = task
 	c.Parameters = append(c.Parameters, parameters...)
+	return c
+}
+
+func (c *OnceJob) Watch(watch func(event MonitorJobSpec)) *OnceJob {
+	c.WatchFunc = watch
 	return c
 }
 

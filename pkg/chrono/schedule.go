@@ -3,6 +3,7 @@ package chrono
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -13,12 +14,7 @@ type Scheduler struct {
 	ctx          context.Context
 	scheduler    gocron.Scheduler
 	monitor      SchedulerMonitor
-	watchFuncMap map[string]Watch
-}
-
-type Watch interface {
-	Stop()
-	ResultChan() <-chan Event
+	watchFuncMap map[string]func(event MonitorJobSpec)
 }
 
 type Event struct {
@@ -30,7 +26,20 @@ type Event struct {
 }
 
 func (s *Scheduler) Watch() {
-
+	event := s.monitor.Watch()
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case e := <-event:
+			fn, ok := s.watchFuncMap[e.JobID.String()]
+			if !ok {
+				slog.Error("job not found", "jobID", e.JobID)
+				continue
+			}
+			fn(e)
+		}
+	}
 }
 
 // NewScheduler creates a new scheduler.
@@ -50,9 +59,10 @@ func NewScheduler(ctx context.Context, monitor SchedulerMonitor) (*Scheduler, er
 
 	// 返回 Scheduler
 	return &Scheduler{
-		scheduler: s,
-		monitor:   monitor,
-		ctx:       ctx,
+		scheduler:    s,
+		monitor:      monitor,
+		ctx:          ctx,
+		watchFuncMap: make(map[string]func(event MonitorJobSpec)),
 	}, nil
 }
 
@@ -182,6 +192,9 @@ func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add once job: %w", err)
 	}
+	if job.WatchFunc != nil {
+		s.watchFuncMap[jobInstance.ID().String()] = job.WatchFunc
+	}
 	return jobInstance, nil
 }
 
@@ -236,6 +249,9 @@ func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
+	}
+	if job.WatchFunc != nil {
+		s.watchFuncMap[jobInstance.ID().String()] = job.WatchFunc
 	}
 	return jobInstance, nil
 }

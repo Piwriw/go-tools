@@ -69,7 +69,7 @@ func TestDailyJob(t *testing.T) {
 		fmt.Println("Task executed with parameters:", a, b)
 		return nil
 	}
-	dailyJob := NewDailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(9, 54, 3))).
+	dailyJob := NewDailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(19, 40, 3))).
 		Names("TestDailyJob").
 		Task(task, 1, 2)
 
@@ -86,6 +86,14 @@ func TestDailyJob(t *testing.T) {
 	}
 }
 
+func add(a, b int) {
+	fmt.Println(a + b)
+}
+
+func countdis(a, b int) {
+	fmt.Println(a - b)
+}
+
 func TestIntervalJob(t *testing.T) {
 	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
@@ -95,16 +103,44 @@ func TestIntervalJob(t *testing.T) {
 		fmt.Println("Task executed with parameters:", a, b)
 		return nil
 	}
-	onceJob := NewIntervalJob(30*time.Second).
+	taskErr := func(a, b int) error {
+		fmt.Println("Task executed with parameters:", a, b)
+		return errors.New("error")
+	}
+	// 定义 funcName
+	a := 1
+	b := 2
+	// 定义 watchFunc
+	watchFunc := func(event MonitorJobSpec) {
+		fmt.Println("watchFunc", event)
+		add(a, b)
+	}
+	watchFunc2 := func(event MonitorJobSpec) {
+		fmt.Println("watchFunc2", event)
+		countdis(a, b)
+	}
+	intervalJob := NewIntervalJob(15*time.Second).
 		Names("TestDurationJob").
+		Watch(watchFunc).
 		Task(task, 1, 2)
 
-	job, err := scheduler.AddIntervalJob(onceJob)
-
+	job, err := scheduler.AddIntervalJob(intervalJob)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	intervalJob2 := NewIntervalJob(15*time.Second).
+		Names("TestDurationJob2").
+		Watch(watchFunc2).
+		Task(taskErr, 3, 5)
+
+	_, err = scheduler.AddIntervalJob(intervalJob2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	scheduler.Start()
+	go scheduler.Watch()
 	nextRun, err := job.NextRun()
 	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
 	// block until you are ready to shut down
