@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
+	"github.com/google/uuid"
 )
 
 // Scheduler 封装 gocron 的调度器
@@ -77,9 +78,60 @@ func (s *Scheduler) Stop() error {
 }
 
 // RemoveJob Removes a job.
-func (s *Scheduler) RemoveJob(job gocron.Job) error {
-	return s.scheduler.RemoveJob(job.ID())
+func (s *Scheduler) RemoveJob(jobID string) error {
+	jobUUID, err := uuid.Parse(jobID)
+	if err != nil {
+		return fmt.Errorf("invalid job ID %s: %w", jobID, err)
+	}
+	return s.scheduler.RemoveJob(jobUUID)
 }
+
+// TODO 批量移除任务
+// RemoveJobs Removes job list with rollback support.
+// func (s *Scheduler) RemoveJobs(jobIDS ...string) error {
+// 	// 获取所有需要删除的任务
+// 	jobs, err := s.GetJobByIDS(jobIDS...)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to get jobs: %w", err)
+// 	}
+//
+// 	// 记录成功删除的任务
+// 	removedJobs := make([]gocron.Job, 0, len(jobs))
+//
+// 	// 遍历任务列表，逐个删除任务
+// 	for _, job := range jobs {
+// 		if err := s.RemoveJob(job.ID().String()); err != nil {
+// 			// 如果删除失败，回滚已删除的任务
+// 			if rollbackErr := s.rollbackRemovedJobs(removedJobs); rollbackErr != nil {
+// 				return fmt.Errorf("failed to remove job %s: %w; rollback failed: %v", job.ID(), err, rollbackErr)
+// 			}
+// 			return fmt.Errorf("failed to remove job %s: %w", job.ID(), err)
+// 		}
+// 		// 记录成功删除的任务
+// 		removedJobs = append(removedJobs, job)
+// 	}
+//
+// 	return nil
+// }
+//
+// // rollbackRemovedJobs 回滚已删除的任务
+// func (s *Scheduler) rollbackRemovedJobs(jobs []gocron.Job) error {
+// 	var rollbackErrors []error
+//
+// 	// 遍历已删除的任务，逐个重新添加
+// 	for _, job := range jobs {
+// 		if err := s.scheduler.AddJob(job); err != nil {
+// 			rollbackErrors = append(rollbackErrors, fmt.Errorf("failed to re-add job %s: %w", job.ID(), err))
+// 		}
+// 	}
+//
+// 	// 如果有回滚错误，返回合并后的错误
+// 	if len(rollbackErrors) > 0 {
+// 		return fmt.Errorf("rollback errors: %v", rollbackErrors)
+// 	}
+//
+// 	return nil
+// }
 
 // GetJobs add all Jobs
 func (s *Scheduler) GetJobs() ([]gocron.Job, error) {
@@ -103,6 +155,23 @@ func (s *Scheduler) GetJobByID(jobID string) (gocron.Job, error) {
 		}
 	}
 	return nil, fmt.Errorf("job %s not found", jobID)
+}
+
+// GetJobByIDS gets jobs by IDs.
+func (s *Scheduler) GetJobByIDS(jobIDS ...string) ([]gocron.Job, error) {
+	// 创建一个切片用于存储找到的任务
+	jobs := make([]gocron.Job, 0, len(jobIDS))
+
+	// 遍历 jobIDS，逐个查找任务
+	for _, jobID := range jobIDS {
+		job, err := s.GetJobByID(jobID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get job %s: %w", jobID, err)
+		}
+		jobs = append(jobs, job)
+	}
+
+	return jobs, nil
 }
 
 // AddCronJob adds a new cron job.
