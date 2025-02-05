@@ -22,6 +22,7 @@ type CronJob struct {
 	Parameters []any
 	Hooks      []gocron.EventListener
 	WatchFunc  func(event MonitorJobSpec)
+	timeout    time.Duration
 	err        error
 }
 
@@ -48,8 +49,16 @@ func (c *CronJob) Task(task any, parameters ...any) *CronJob {
 		c.err = errors.Join(c.err, ErrTaskFuncNil)
 		return c
 	}
-	c.TaskFunc = task
 	c.Parameters = append(c.Parameters, parameters...)
+	return c
+}
+
+func (c *CronJob) Timeout(timeout time.Duration) *CronJob {
+	if timeout <= 0 {
+		c.err = errors.Join(c.err, ErrValidateTimeout)
+		return c
+	}
+	c.timeout = timeout
 	return c
 }
 

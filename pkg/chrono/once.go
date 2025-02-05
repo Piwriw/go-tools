@@ -1,7 +1,10 @@
 package chrono
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -15,6 +18,7 @@ type OnceJob struct {
 	Parameters []any
 	Hooks      []gocron.EventListener
 	WatchFunc  func(event MonitorJobSpec)
+	timeout    time.Duration
 	err        error
 }
 
@@ -37,8 +41,49 @@ func (c *OnceJob) Task(task any, parameters ...any) *OnceJob {
 		c.err = errors.Join(c.err, ErrTaskFuncNil)
 		return c
 	}
-	c.TaskFunc = task
+	c.TaskFunc = func() error {
+		var ctx context.Context
+		var cancel context.CancelFunc
+		// 如果设置了超时时间，则使用 context.WithTimeout
+		if c.timeout > 0 {
+			ctx, cancel = context.WithTimeout(context.Background(), c.timeout)
+			defer cancel()
+		} else {
+			// 如果没有设置超时时间，则直接使用背景上下文
+			ctx = context.Background()
+		}
+
+		done := make(chan error, 1)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					done <- fmt.Errorf("task panicked: %v", r)
+				}
+			}()
+			done <- callJobFuncWithParams(task, parameters...)
+		}()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				slog.Error("task exec failed", "err", err)
+				return ErrTaskFailed
+			}
+		case <-ctx.Done():
+			return ErrTaskTimeout
+		}
+		return nil
+	}
 	c.Parameters = append(c.Parameters, parameters...)
+	return c
+}
+
+func (c *OnceJob) Timeout(timeout time.Duration) *OnceJob {
+	if timeout <= 0 {
+		c.err = errors.Join(c.err, ErrValidateTimeout)
+		return c
+	}
+	c.timeout = timeout
 	return c
 }
 

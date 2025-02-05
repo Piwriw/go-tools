@@ -210,8 +210,8 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	}
 
 	jobInstance, err := s.scheduler.NewJob(
-		gocron.CronJob(job.Expr, false),                 // 使用 cron 表达式
-		gocron.NewTask(job.TaskFunc, job.Parameters...), // 任务函数
+		gocron.CronJob(job.Expr, false), // 使用 cron 表达式
+		gocron.NewTask(job.TaskFunc),    // 任务函数
 		gocron.WithEventListeners(job.Hooks...),
 		gocron.WithName(job.Name),
 	)
@@ -279,7 +279,7 @@ func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
 	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.OneTimeJob(gocron.OneTimeJobStartDateTimes(job.WorkTime...)),
-		gocron.NewTask(job.TaskFunc, job.Parameters...), // 任务函数
+		gocron.NewTask(job.TaskFunc), // 任务函数
 		gocron.WithEventListeners(job.Hooks...),
 		gocron.WithName(job.Name),
 	)
@@ -337,7 +337,7 @@ func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
 	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.DurationJob(job.Interval),
-		gocron.NewTask(job.TaskFunc, job.Parameters...),
+		gocron.NewTask(job.TaskFunc),
 		gocron.WithEventListeners(job.Hooks...),
 		gocron.WithName(job.Name),
 	)
@@ -395,7 +395,7 @@ func (s *Scheduler) AddDailyJob(job *DailyJob) (gocron.Job, error) {
 	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.DailyJob(job.Interval, job.AtTimes),
-		gocron.NewTask(job.TaskFunc, job.Parameters...),
+		gocron.NewTask(job.TaskFunc),
 		gocron.WithEventListeners(job.Hooks...),
 		gocron.WithName(job.Name),
 	)
@@ -453,7 +453,7 @@ func (s *Scheduler) AddWeeklyJob(job *WeeklyJob) (gocron.Job, error) {
 	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.WeeklyJob(job.Interval, job.DaysOfTheWeek, job.AtTimes),
-		gocron.NewTask(job.TaskFunc, job.Parameters...),
+		gocron.NewTask(job.TaskFunc),
 		gocron.WithEventListeners(job.Hooks...),
 		gocron.WithName(job.Name),
 	)
@@ -511,7 +511,7 @@ func (s *Scheduler) AddMonthlyJob(job *MonthJob) (gocron.Job, error) {
 	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.MonthlyJob(job.Interval, job.DaysOfTheMonth, job.AtTimes),
-		gocron.NewTask(job.TaskFunc, job.Parameters...),
+		gocron.NewTask(job.TaskFunc),
 		gocron.WithEventListeners(job.Hooks...),
 		gocron.WithName(job.Name),
 	)

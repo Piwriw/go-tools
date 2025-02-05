@@ -10,6 +10,145 @@ import (
 	"github.com/google/uuid"
 )
 
+func TestTimeOutJobPanic(t *testing.T) {
+	scheduler, err := NewScheduler(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 Cron 任务
+	task := func(a, b int) error {
+		panic("panic")
+	}
+	name := "Joohwan"
+	intervalJob := NewIntervalJob(time.Second*20).
+		Names("TestTimeOutJobPanic").
+		AfterJobRunsWithPanic(func(jobID uuid.UUID, jobName string, recoverData any) {
+			fmt.Println("watchFunc", err, name)
+		}).
+		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
+		fmt.Println("StartTime", event.StartTime.Format("2006-04-02 15-04-05"),
+			"EndTime", event.EndTime.Format("2006-04-02 15-04-05"),
+			"Duration", event.EndTime.Sub(event.StartTime))
+		fmt.Println("watchFunc", event, name)
+	})
+
+	job, err := scheduler.AddIntervalJob(intervalJob)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	nextRun, err := job.NextRun()
+	go scheduler.Watch()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
+
+func TestTimeOutJob(t *testing.T) {
+	scheduler, err := NewScheduler(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 Cron 任务
+	task := func(a, b int) error {
+		fmt.Println("Task executed with parameters:", a, b)
+		return nil
+	}
+	name := "Joohwan"
+	intervalJob := NewIntervalJob(time.Second*20).
+		Names("TestTimeOutJob").
+		Timeout(time.Second*80).
+		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
+		fmt.Println("StartTime", event.StartTime.Format("2006-01-02 15-04-05"),
+			"EndTime", event.EndTime.Format("2006-01-02 15-04-05"),
+			"Duration", event.EndTime.Sub(event.StartTime))
+		fmt.Println("watchFunc", event, name)
+	})
+
+	job, err := scheduler.AddIntervalJob(intervalJob)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	nextRun, err := job.NextRun()
+	go scheduler.Watch()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
+
+func TestWithNoTimeOutJob(t *testing.T) {
+	scheduler, err := NewScheduler(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 Cron 任务
+	task := func(a, b int) error {
+		fmt.Println("Task executed with parameters:", a, b)
+		return nil
+	}
+	intervalJob := NewIntervalJob(time.Second*20).
+		Names("TestWithNoTimeOutJob").
+		Timeout(time.Second*80).
+		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
+		fmt.Println("StartTime", event.StartTime.Format("2006-01-02 15-04-05"),
+			"EndTime", event.EndTime.Format("2006-01-02 15-04-05"),
+			"Duration", event.EndTime.Sub(event.StartTime))
+	})
+
+	job, err := scheduler.AddIntervalJob(intervalJob)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	nextRun, err := job.NextRun()
+	go scheduler.Watch()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
+func TestValidateTimeOutJob(t *testing.T) {
+	scheduler, err := NewScheduler(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 Cron 任务
+	task := func(a, b int) error {
+		fmt.Println("Task executed with parameters:", a, b)
+		return nil
+	}
+	intervalJob := NewIntervalJob(time.Second*20).
+		Names("TestValidateTimeOutJob").
+		Timeout(-1).
+		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
+		fmt.Println("StartTime", event.StartTime.Format("2006-01-02 15-04-05"),
+			"EndTime", event.EndTime.Format("2006-01-02 15-04-05"),
+			"Duration", event.EndTime.Sub(event.StartTime))
+	})
+
+	job, err := scheduler.AddIntervalJob(intervalJob)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	nextRun, err := job.NextRun()
+	go scheduler.Watch()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
 func TestWatchJob(t *testing.T) {
 	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
