@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Scheduler 封装 gocron 的调度器
+// Scheduler base gocron scheduler
 type Scheduler struct {
 	ctx          context.Context
 	scheduler    gocron.Scheduler
@@ -323,7 +323,7 @@ func (s *Scheduler) AddOnceJobWithOptions(startAt gocron.OneTimeJobStartAtOption
 	return job, nil
 }
 
-// AddIntervalJob 添加一个间隔任务
+// AddIntervalJob  add interval job
 func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
 	if job == nil {
 		return nil, ErrInvalidJob
