@@ -10,6 +10,38 @@ import (
 	"github.com/google/uuid"
 )
 
+func TestWatchJob(t *testing.T) {
+	scheduler, err := NewScheduler(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 Cron 任务
+	task := func(a, b int) error {
+		fmt.Println("Task executed with parameters:", a, b)
+		return nil
+	}
+	name := "Joohwan"
+	cronJob := NewCronJob(DayTimeToCron(time.Now().Add(time.Minute*1))).
+		Names("TestWatchJob").
+		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
+		fmt.Println("watchFunc", event, name)
+	})
+
+	job, err := scheduler.AddCronJob(cronJob)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	nextRun, err := job.NextRun()
+	go scheduler.Watch()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
+
 func TestMonthlyJob(t *testing.T) {
 	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
@@ -35,6 +67,7 @@ func TestMonthlyJob(t *testing.T) {
 	case <-time.After(time.Minute * 10):
 	}
 }
+
 func TestWeeklyJob(t *testing.T) {
 	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {

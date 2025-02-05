@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -16,6 +17,7 @@ type Scheduler struct {
 	scheduler    gocron.Scheduler
 	monitor      SchedulerMonitor
 	watchFuncMap map[string]func(event MonitorJobSpec)
+	mu           sync.Mutex // 用于保护 watchFuncMap
 }
 
 type Event struct {
@@ -83,7 +85,27 @@ func (s *Scheduler) RemoveJob(jobID string) error {
 	if err != nil {
 		return fmt.Errorf("invalid job ID %s: %w", jobID, err)
 	}
+	s.removeWatchFunc(jobID)
 	return s.scheduler.RemoveJob(jobUUID)
+}
+
+// addWatchFunc add watch Func
+func (s *Scheduler) addWatchFunc(jobID string, fn func(event MonitorJobSpec)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.watchFuncMap[jobID] = fn
+}
+
+// removeWatchFunc  remove watch Func
+func (s *Scheduler) removeWatchFunc(jobID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.watchFuncMap[jobID]; exists {
+		delete(s.watchFuncMap, jobID)
+		slog.Info("Watch function removed", "jobID", jobID)
+	} else {
+		slog.Warn("Job not found in watchFuncMap", "jobID", jobID)
+	}
 }
 
 // TODO 批量移除任务
@@ -196,6 +218,9 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add cron job: %w", err)
 	}
+	if job.WatchFunc != nil {
+		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
+	}
 
 	return jobInstance, nil
 }
@@ -262,7 +287,7 @@ func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
 		return nil, fmt.Errorf("failed to add once job: %w", err)
 	}
 	if job.WatchFunc != nil {
-		s.watchFuncMap[jobInstance.ID().String()] = job.WatchFunc
+		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
 	return jobInstance, nil
 }
@@ -320,7 +345,7 @@ func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
 	if job.WatchFunc != nil {
-		s.watchFuncMap[jobInstance.ID().String()] = job.WatchFunc
+		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
 	return jobInstance, nil
 }
@@ -377,6 +402,9 @@ func (s *Scheduler) AddDailyJob(job *DailyJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
+	if job.WatchFunc != nil {
+		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
+	}
 	return jobInstance, nil
 }
 
@@ -432,6 +460,9 @@ func (s *Scheduler) AddWeeklyJob(job *WeeklyJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add weekly job: %w", err)
 	}
+	if job.WatchFunc != nil {
+		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
+	}
 	return jobInstance, nil
 }
 
@@ -486,6 +517,9 @@ func (s *Scheduler) AddMonthlyJob(job *MonthJob) (gocron.Job, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add monthly job: %w", err)
+	}
+	if job.WatchFunc != nil {
+		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
 	return jobInstance, nil
 }
