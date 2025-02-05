@@ -64,7 +64,7 @@ func (c *WeeklyJob) Task(task any, parameters ...any) *WeeklyJob {
 					done <- fmt.Errorf("task panicked: %v", r)
 				}
 			}()
-			done <- callJobFuncWithParams(task, parameters...)
+			done <- callJobFunc(task, parameters...)
 		}()
 
 		select {

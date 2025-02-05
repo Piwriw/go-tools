@@ -69,7 +69,7 @@ func (c *IntervalJob) Task(task any, parameters ...any) *IntervalJob {
 					done <- fmt.Errorf("task panicked: %v", r)
 				}
 			}()
-			done <- callJobFuncWithParams(task, parameters...)
+			done <- callJobFunc(task, parameters...)
 		}()
 
 		select {

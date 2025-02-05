@@ -10,6 +10,41 @@ import (
 	"github.com/google/uuid"
 )
 
+func TestTwoJob(t *testing.T) {
+	scheduler, err := NewScheduler(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 Cron 任务
+	task2 := func() error {
+		fmt.Println("Task2 executed with parameters:")
+		return nil
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	intervalJob2 := NewIntervalJob(time.Second*20).
+		Names("TestTwoJob").
+		Task(task2, 12).Watch(func(event MonitorJobSpec) {
+		fmt.Println("StartTime", event.StartTime.Format("2006-04-02 15-04-05"),
+			"EndTime", event.EndTime.Format("2006-04-02 15-04-05"),
+			"Duration", event.EndTime.Sub(event.StartTime), "name", event.JobName)
+	})
+
+	job, err := scheduler.AddIntervalJob(intervalJob2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextRun, err := job.NextRun()
+	go scheduler.Watch()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
+
 func TestTimeOutJobPanic(t *testing.T) {
 	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {

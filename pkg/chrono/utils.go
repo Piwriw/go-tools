@@ -1,8 +1,11 @@
 package chrono
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
-func callJobFuncWithParams(jobFunc any, params ...any) error {
+func callJobFunc(jobFunc any, params ...any) error {
 	if jobFunc == nil {
 		return nil
 	}
@@ -11,7 +14,7 @@ func callJobFuncWithParams(jobFunc any, params ...any) error {
 		return nil
 	}
 	if len(params) != f.Type().NumIn() {
-		return nil
+		return fmt.Errorf("expected function with %d parameters, got one with %d", f.Type().NumIn(), len(params))
 	}
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {

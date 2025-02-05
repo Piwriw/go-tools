@@ -60,7 +60,7 @@ func (c *OnceJob) Task(task any, parameters ...any) *OnceJob {
 					done <- fmt.Errorf("task panicked: %v", r)
 				}
 			}()
-			done <- callJobFuncWithParams(task, parameters...)
+			done <- callJobFunc(task, parameters...)
 		}()
 
 		select {
