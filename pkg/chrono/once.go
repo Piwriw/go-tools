@@ -12,12 +12,13 @@ import (
 )
 
 type OnceJob struct {
+	ID         string
 	Name       string
 	WorkTime   []time.Time
 	TaskFunc   any
 	Parameters []any
 	Hooks      []gocron.EventListener
-	WatchFunc  func(event MonitorJobSpec)
+	WatchFunc  func(event JobWatchInterface)
 	timeout    time.Duration
 	err        error
 }
@@ -26,6 +27,11 @@ func NewOnceJob(workTimes ...time.Time) *OnceJob {
 	return &OnceJob{
 		WorkTime: workTimes,
 	}
+}
+
+func (c *OnceJob) JobID(id string) *OnceJob {
+	c.ID = id
+	return c
 }
 
 func (c *OnceJob) Names(name string) *OnceJob {
@@ -87,7 +93,7 @@ func (c *OnceJob) Timeout(timeout time.Duration) *OnceJob {
 	return c
 }
 
-func (c *OnceJob) Watch(watch func(event MonitorJobSpec)) *OnceJob {
+func (c *OnceJob) Watch(watch func(event JobWatchInterface)) *OnceJob {
 	c.WatchFunc = watch
 	return c
 }

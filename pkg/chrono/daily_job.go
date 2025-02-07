@@ -12,13 +12,14 @@ import (
 )
 
 type DailyJob struct {
+	ID         string
 	Name       string
 	Interval   uint
 	AtTimes    gocron.AtTimes
 	TaskFunc   any
 	Parameters []any
 	Hooks      []gocron.EventListener
-	WatchFunc  func(event MonitorJobSpec)
+	WatchFunc  func(event JobWatchInterface)
 	timeout    time.Duration
 	err        error
 }
@@ -28,6 +29,11 @@ func NewDailyJob(interval uint, atTime gocron.AtTimes) *DailyJob {
 		Interval: interval,
 		AtTimes:  atTime,
 	}
+}
+
+func (c *DailyJob) JobID(id string) *DailyJob {
+	c.ID = id
+	return c
 }
 
 func (c *DailyJob) Names(name string) *DailyJob {
@@ -89,7 +95,7 @@ func (c *DailyJob) Timeout(timeout time.Duration) *DailyJob {
 	return c
 }
 
-func (c *DailyJob) Watch(watch func(event MonitorJobSpec)) *DailyJob {
+func (c *DailyJob) Watch(watch func(event JobWatchInterface)) *DailyJob {
 	c.WatchFunc = watch
 	return c
 }

@@ -9,15 +9,26 @@ import (
 	"github.com/google/uuid"
 )
 
+type JobWatchInterface interface {
+	GetJobID() string
+	GetJobName() string
+	GetStartTime() time.Time
+	GetEndTime() time.Time
+	GetStatus() gocron.JobStatus
+	GetTags() []string
+	Error() error
+}
+
 type SchedulerMonitor interface {
 	gocron.MonitorStatus
-	Watch() chan MonitorJobSpec
+	Watch() chan JobWatchInterface
 }
+
 type defaultSchedulerMonitor struct {
 	mu      sync.Mutex
 	counter map[string]int
 	time    map[string][]time.Duration
-	jobChan chan MonitorJobSpec
+	jobChan chan JobWatchInterface
 }
 
 type MonitorJobSpec struct {
@@ -28,6 +39,34 @@ type MonitorJobSpec struct {
 	Status    gocron.JobStatus
 	Tags      []string
 	Err       error
+}
+
+func (m MonitorJobSpec) GetJobID() string {
+	return m.JobID.String()
+}
+
+func (m MonitorJobSpec) GetJobName() string {
+	return m.JobName
+}
+
+func (m MonitorJobSpec) GetStartTime() time.Time {
+	return m.StartTime
+}
+
+func (m MonitorJobSpec) GetEndTime() time.Time {
+	return m.EndTime
+}
+
+func (m MonitorJobSpec) GetStatus() gocron.JobStatus {
+	return m.Status
+}
+
+func (m MonitorJobSpec) GetTags() []string {
+	return m.Tags
+}
+
+func (m MonitorJobSpec) Error() error {
+	return m.Err
 }
 
 func NewMonitorJobSpec(id uuid.UUID, name string, startTime, endTime time.Time, tags []string, status gocron.JobStatus, err error) MonitorJobSpec {
@@ -46,7 +85,7 @@ func newDefaultSchedulerMonitor() *defaultSchedulerMonitor {
 	return &defaultSchedulerMonitor{
 		counter: make(map[string]int),
 		time:    make(map[string][]time.Duration),
-		jobChan: make(chan MonitorJobSpec, 100),
+		jobChan: make(chan JobWatchInterface, 100),
 	}
 }
 
@@ -86,7 +125,7 @@ func (s *defaultSchedulerMonitor) RecordJobTimingWithStatus(startTime, endTime t
 }
 
 // Watch 监听任务的执行情况
-func (s *defaultSchedulerMonitor) Watch() chan MonitorJobSpec {
+func (s *defaultSchedulerMonitor) Watch() chan JobWatchInterface {
 	return s.jobChan
 	// for {
 	// 	select {

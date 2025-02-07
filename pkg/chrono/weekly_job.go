@@ -12,6 +12,7 @@ import (
 )
 
 type WeeklyJob struct {
+	ID            string
 	Name          string
 	Interval      uint
 	DaysOfTheWeek gocron.Weekdays
@@ -19,7 +20,7 @@ type WeeklyJob struct {
 	TaskFunc      any
 	Parameters    []any
 	Hooks         []gocron.EventListener
-	WatchFunc     func(event MonitorJobSpec)
+	WatchFunc     func(event JobWatchInterface)
 	timeout       time.Duration
 	err           error
 }
@@ -30,6 +31,11 @@ func NewWeeklyJob(interval uint, days gocron.Weekdays, atTime gocron.AtTimes) *W
 		DaysOfTheWeek: days,
 		AtTimes:       atTime,
 	}
+}
+
+func (c *WeeklyJob) JobID(id string) *WeeklyJob {
+	c.ID = id
+	return c
 }
 
 func (c *WeeklyJob) Names(name string) *WeeklyJob {
@@ -91,7 +97,7 @@ func (c *WeeklyJob) Timeout(timeout time.Duration) *WeeklyJob {
 	return c
 }
 
-func (c *WeeklyJob) Watch(watch func(event MonitorJobSpec)) *WeeklyJob {
+func (c *WeeklyJob) Watch(watch func(event JobWatchInterface)) *WeeklyJob {
 	c.WatchFunc = watch
 	return c
 }

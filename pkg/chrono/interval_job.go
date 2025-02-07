@@ -12,12 +12,13 @@ import (
 )
 
 type IntervalJob struct {
+	ID         string
 	Name       string
 	Interval   time.Duration
 	TaskFunc   any
 	Parameters []any
 	Hooks      []gocron.EventListener
-	WatchFunc  func(event MonitorJobSpec)
+	WatchFunc  func(event JobWatchInterface)
 	timeout    time.Duration
 	err        error
 }
@@ -26,6 +27,11 @@ func NewIntervalJob(interval time.Duration) *IntervalJob {
 	return &IntervalJob{
 		Interval: interval,
 	}
+}
+
+func (c *IntervalJob) JobID(id string) *IntervalJob {
+	c.ID = id
+	return c
 }
 
 func (c *IntervalJob) Names(name string) *IntervalJob {
@@ -88,7 +94,7 @@ func (c *IntervalJob) Task(task any, parameters ...any) *IntervalJob {
 	return c
 }
 
-func (c *IntervalJob) Watch(watch func(event MonitorJobSpec)) *IntervalJob {
+func (c *IntervalJob) Watch(watch func(event JobWatchInterface)) *IntervalJob {
 	c.WatchFunc = watch
 	return c
 }

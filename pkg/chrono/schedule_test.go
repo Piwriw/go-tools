@@ -1,8 +1,10 @@
 package chrono
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -10,6 +12,92 @@ import (
 	"github.com/google/uuid"
 )
 
+type customJobMonitor struct {
+	jobChan chan JobWatchInterface
+}
+type customJobSpec struct {
+	ID string
+}
+
+func (c customJobSpec) GetJobID() string {
+	return c.ID
+}
+
+func (c customJobSpec) GetJobName() string {
+	return "customJobSpec"
+}
+
+func (c customJobSpec) GetStartTime() time.Time {
+	return time.Now()
+}
+
+func (c customJobSpec) GetEndTime() time.Time {
+	return time.Now()
+}
+
+func (c customJobSpec) GetStatus() gocron.JobStatus {
+	return "success"
+}
+
+func (c customJobSpec) GetTags() []string {
+	return []string{}
+}
+
+func (c customJobSpec) Error() error {
+	return errors.New("error")
+}
+
+func (c customJobMonitor) IncrementJob(id uuid.UUID, name string, tags []string, status gocron.JobStatus) {
+	slog.Info("IncrementJob", "JobID", id, "JobName", name, "tags", tags, "status", status)
+}
+
+func (c customJobMonitor) RecordJobTiming(startTime, endTime time.Time, id uuid.UUID, name string, tags []string) {
+	slog.Info("IncrementJob", "JobID", id, "JobName", name, "tags", tags)
+}
+
+func (c customJobMonitor) RecordJobTimingWithStatus(startTime, endTime time.Time, id uuid.UUID, name string, tags []string, status gocron.JobStatus, err error) {
+	c.jobChan <- customJobSpec{ID: id.String()}
+}
+
+func (c customJobMonitor) Watch() chan JobWatchInterface {
+	return c.jobChan
+}
+
+func TestCustomJobMonitor(t *testing.T) {
+	scheduler, err := NewScheduler(context.TODO(), customJobMonitor{jobChan: make(chan JobWatchInterface)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 Cron 任务
+	task2 := func() error {
+		fmt.Println("Task2 executed with parameters:")
+		return nil
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	intervalJob2 := NewIntervalJob(time.Second * 20).
+		JobID("550e8400-e29b-41d4-a716-446655440000").
+		Names("TestTwoJob").
+		Task(task2).Watch(func(event JobWatchInterface) {
+		fmt.Println("StartTime", event.GetStartTime().Format("2006-04-02 15-04-05"),
+			"EndTime", event.GetEndTime().Format("2006-04-02 15-04-05"),
+			"Duration", event.GetEndTime().Sub(event.GetStartTime()))
+	})
+
+	job, err := scheduler.AddIntervalJob(intervalJob2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextRun, err := job.NextRun()
+	go scheduler.Watch()
+	t.Log("First Task", job.ID(), "TASK NAME", job.Name(), "nextRunTime", nextRun.Format("2006-01-02 15:04:05"))
+	// block until you are ready to shut down
+	select {
+	case <-time.After(time.Minute * 10):
+	}
+}
 func TestTwoJob(t *testing.T) {
 	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
@@ -26,10 +114,10 @@ func TestTwoJob(t *testing.T) {
 	scheduler.Start()
 	intervalJob2 := NewIntervalJob(time.Second*20).
 		Names("TestTwoJob").
-		Task(task2, 12).Watch(func(event MonitorJobSpec) {
-		fmt.Println("StartTime", event.StartTime.Format("2006-04-02 15-04-05"),
-			"EndTime", event.EndTime.Format("2006-04-02 15-04-05"),
-			"Duration", event.EndTime.Sub(event.StartTime), "name", event.JobName)
+		Task(task2, 12).Watch(func(event JobWatchInterface) {
+		fmt.Println("StartTime", event.GetStartTime().Format("2006-04-02 15-04-05"),
+			"EndTime", event.GetEndTime().Format("2006-04-02 15-04-05"),
+			"Duration", event.GetEndTime().Sub(event.GetStartTime()))
 	})
 
 	job, err := scheduler.AddIntervalJob(intervalJob2)
@@ -60,10 +148,10 @@ func TestTimeOutJobPanic(t *testing.T) {
 		AfterJobRunsWithPanic(func(jobID uuid.UUID, jobName string, recoverData any) {
 			fmt.Println("watchFunc", err, name)
 		}).
-		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
-		fmt.Println("StartTime", event.StartTime.Format("2006-04-02 15-04-05"),
-			"EndTime", event.EndTime.Format("2006-04-02 15-04-05"),
-			"Duration", event.EndTime.Sub(event.StartTime))
+		Task(task, 1, 2).Watch(func(event JobWatchInterface) {
+		fmt.Println("StartTime", event.GetStartTime().Format("2006-04-02 15-04-05"),
+			"EndTime", event.GetEndTime().Format("2006-04-02 15-04-05"),
+			"Duration", event.GetEndTime().Sub(event.GetStartTime()))
 		fmt.Println("watchFunc", event, name)
 	})
 
@@ -81,7 +169,6 @@ func TestTimeOutJobPanic(t *testing.T) {
 	case <-time.After(time.Minute * 10):
 	}
 }
-
 func TestTimeOutJob(t *testing.T) {
 	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {
@@ -96,12 +183,13 @@ func TestTimeOutJob(t *testing.T) {
 	intervalJob := NewIntervalJob(time.Second*20).
 		Names("TestTimeOutJob").
 		Timeout(time.Second*80).
-		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
-		fmt.Println("StartTime", event.StartTime.Format("2006-01-02 15-04-05"),
-			"EndTime", event.EndTime.Format("2006-01-02 15-04-05"),
-			"Duration", event.EndTime.Sub(event.StartTime))
-		fmt.Println("watchFunc", event, name)
-	})
+		Task(task, 1, 2).
+		Watch(func(event JobWatchInterface) {
+			// fmt.Println("StartTime", event.StartTime.Format("2006-01-02 15-04-05"),
+			// 	"EndTime", event.EndTime.Format("2006-01-02 15-04-05"),
+			// 	"Duration", event.EndTime.Sub(event.StartTime))
+			fmt.Println("watchFunc", event, name)
+		})
 
 	job, err := scheduler.AddIntervalJob(intervalJob)
 
@@ -131,10 +219,10 @@ func TestWithNoTimeOutJob(t *testing.T) {
 	intervalJob := NewIntervalJob(time.Second*20).
 		Names("TestWithNoTimeOutJob").
 		Timeout(time.Second*80).
-		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
-		fmt.Println("StartTime", event.StartTime.Format("2006-01-02 15-04-05"),
-			"EndTime", event.EndTime.Format("2006-01-02 15-04-05"),
-			"Duration", event.EndTime.Sub(event.StartTime))
+		Task(task, 1, 2).Watch(func(event JobWatchInterface) {
+		fmt.Println("StartTime", event.GetStartTime().Format("2006-04-02 15-04-05"),
+			"EndTime", event.GetEndTime().Format("2006-04-02 15-04-05"),
+			"Duration", event.GetEndTime().Sub(event.GetStartTime()))
 	})
 
 	job, err := scheduler.AddIntervalJob(intervalJob)
@@ -164,10 +252,10 @@ func TestValidateTimeOutJob(t *testing.T) {
 	intervalJob := NewIntervalJob(time.Second*20).
 		Names("TestValidateTimeOutJob").
 		Timeout(-1).
-		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
-		fmt.Println("StartTime", event.StartTime.Format("2006-01-02 15-04-05"),
-			"EndTime", event.EndTime.Format("2006-01-02 15-04-05"),
-			"Duration", event.EndTime.Sub(event.StartTime))
+		Task(task, 1, 2).Watch(func(event JobWatchInterface) {
+		fmt.Println("StartTime", event.GetStartTime().Format("2006-04-02 15-04-05"),
+			"EndTime", event.GetEndTime().Format("2006-04-02 15-04-05"),
+			"Duration", event.GetEndTime().Sub(event.GetStartTime()))
 	})
 
 	job, err := scheduler.AddIntervalJob(intervalJob)
@@ -197,7 +285,7 @@ func TestWatchJob(t *testing.T) {
 	name := "Joohwan"
 	cronJob := NewCronJob(DayTimeToCron(time.Now().Add(time.Minute*1))).
 		Names("TestWatchJob").
-		Task(task, 1, 2).Watch(func(event MonitorJobSpec) {
+		Task(task, 1, 2).Watch(func(event JobWatchInterface) {
 		fmt.Println("watchFunc", event, name)
 	})
 
@@ -318,11 +406,11 @@ func TestIntervalJob(t *testing.T) {
 	a := 1
 	b := 2
 	// 定义 watchFunc
-	watchFunc := func(event MonitorJobSpec) {
+	watchFunc := func(event JobWatchInterface) {
 		fmt.Println("watchFunc", event)
 		add(a, b)
 	}
-	watchFunc2 := func(event MonitorJobSpec) {
+	watchFunc2 := func(event JobWatchInterface) {
 		fmt.Println("watchFunc2", event)
 		countdis(a, b)
 	}

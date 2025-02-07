@@ -16,12 +16,13 @@ const (
 )
 
 type CronJob struct {
+	ID         string
 	Name       string
 	Expr       string
 	TaskFunc   any
 	Parameters []any
 	Hooks      []gocron.EventListener
-	WatchFunc  func(event MonitorJobSpec)
+	WatchFunc  func(event JobWatchInterface)
 	timeout    time.Duration
 	err        error
 }
@@ -34,6 +35,11 @@ func NewCronJob(expr string) *CronJob {
 
 func (c *CronJob) Error() string {
 	return c.err.Error()
+}
+
+func (c *CronJob) JobID(id string) *CronJob {
+	c.ID = id
+	return c
 }
 
 func (c *CronJob) Names(name string) *CronJob {
@@ -62,7 +68,7 @@ func (c *CronJob) Timeout(timeout time.Duration) *CronJob {
 	return c
 }
 
-func (c *CronJob) Watch(watch func(event MonitorJobSpec)) *CronJob {
+func (c *CronJob) Watch(watch func(event JobWatchInterface)) *CronJob {
 	c.WatchFunc = watch
 	return c
 }

@@ -16,7 +16,7 @@ type Scheduler struct {
 	ctx          context.Context
 	scheduler    gocron.Scheduler
 	monitor      SchedulerMonitor
-	watchFuncMap map[string]func(event MonitorJobSpec)
+	watchFuncMap map[string]func(event JobWatchInterface)
 	mu           sync.Mutex // 用于保护 watchFuncMap
 }
 
@@ -35,9 +35,9 @@ func (s *Scheduler) Watch() {
 		case <-s.ctx.Done():
 			return
 		case e := <-event:
-			fn, ok := s.watchFuncMap[e.JobID.String()]
+			fn, ok := s.watchFuncMap[e.GetJobID()]
 			if !ok {
-				slog.Error("job not found", "jobID", e.JobID)
+				slog.Error("job not found", "jobID", e.GetJobID())
 				continue
 			}
 			fn(e)
@@ -65,7 +65,7 @@ func NewScheduler(ctx context.Context, monitor SchedulerMonitor) (*Scheduler, er
 		scheduler:    s,
 		monitor:      monitor,
 		ctx:          ctx,
-		watchFuncMap: make(map[string]func(event MonitorJobSpec)),
+		watchFuncMap: make(map[string]func(event JobWatchInterface)),
 	}, nil
 }
 
@@ -90,7 +90,7 @@ func (s *Scheduler) RemoveJob(jobID string) error {
 }
 
 // addWatchFunc add watch Func
-func (s *Scheduler) addWatchFunc(jobID string, fn func(event MonitorJobSpec)) {
+func (s *Scheduler) addWatchFunc(jobID string, fn func(event JobWatchInterface)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.watchFuncMap[jobID] = fn
@@ -208,12 +208,19 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	if job.TaskFunc == nil {
 		return nil, fmt.Errorf("job %s has no task function", job.Name)
 	}
-
+	opts := make([]gocron.JobOption, 0)
+	opts = append(opts, gocron.WithEventListeners(job.Hooks...), gocron.WithName(job.Name))
+	if job.ID != "" {
+		jobID, err := uuid.Parse(job.ID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid job ID %s: %w", job.ID, err)
+		}
+		opts = append(opts, gocron.WithIdentifier(jobID))
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.CronJob(job.Expr, false), // 使用 cron 表达式
 		gocron.NewTask(job.TaskFunc),    // 任务函数
-		gocron.WithEventListeners(job.Hooks...),
-		gocron.WithName(job.Name),
+		opts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add cron job: %w", err)
@@ -277,11 +284,19 @@ func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
 	if job.TaskFunc == nil {
 		return nil, fmt.Errorf("job %s has no task function", job.Name)
 	}
+	opts := make([]gocron.JobOption, 0)
+	opts = append(opts, gocron.WithEventListeners(job.Hooks...), gocron.WithName(job.Name))
+	if job.ID != "" {
+		jobID, err := uuid.Parse(job.ID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid job ID %s: %w", job.ID, err)
+		}
+		opts = append(opts, gocron.WithIdentifier(jobID))
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.OneTimeJob(gocron.OneTimeJobStartDateTimes(job.WorkTime...)),
-		gocron.NewTask(job.TaskFunc), // 任务函数
-		gocron.WithEventListeners(job.Hooks...),
-		gocron.WithName(job.Name),
+		gocron.NewTask(job.TaskFunc),
+		opts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add once job: %w", err)
@@ -335,11 +350,21 @@ func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
 	if job.TaskFunc == nil {
 		return nil, fmt.Errorf("job %s has no task function", job.Name)
 	}
+	// Job options
+	opts := make([]gocron.JobOption, 0)
+	opts = append(opts, gocron.WithEventListeners(job.Hooks...), gocron.WithName(job.Name))
+	if job.ID != "" {
+		jobID, err := uuid.Parse(job.ID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid job ID %s: %w", job.ID, err)
+		}
+		opts = append(opts, gocron.WithIdentifier(jobID))
+	}
+
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.DurationJob(job.Interval),
 		gocron.NewTask(job.TaskFunc),
-		gocron.WithEventListeners(job.Hooks...),
-		gocron.WithName(job.Name),
+		opts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
@@ -393,11 +418,19 @@ func (s *Scheduler) AddDailyJob(job *DailyJob) (gocron.Job, error) {
 	if job.TaskFunc == nil {
 		return nil, fmt.Errorf("job %s has no task function", job.Name)
 	}
+	opts := make([]gocron.JobOption, 0)
+	opts = append(opts, gocron.WithEventListeners(job.Hooks...), gocron.WithName(job.Name))
+	if job.ID != "" {
+		jobID, err := uuid.Parse(job.ID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid job ID %s: %w", job.ID, err)
+		}
+		opts = append(opts, gocron.WithIdentifier(jobID))
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.DailyJob(job.Interval, job.AtTimes),
 		gocron.NewTask(job.TaskFunc),
-		gocron.WithEventListeners(job.Hooks...),
-		gocron.WithName(job.Name),
+		opts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
@@ -451,11 +484,19 @@ func (s *Scheduler) AddWeeklyJob(job *WeeklyJob) (gocron.Job, error) {
 	if job.TaskFunc == nil {
 		return nil, fmt.Errorf("job %s has no task function", job.Name)
 	}
+	opts := make([]gocron.JobOption, 0)
+	opts = append(opts, gocron.WithEventListeners(job.Hooks...), gocron.WithName(job.Name))
+	if job.ID != "" {
+		jobID, err := uuid.Parse(job.ID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid job ID %s: %w", job.ID, err)
+		}
+		opts = append(opts, gocron.WithIdentifier(jobID))
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.WeeklyJob(job.Interval, job.DaysOfTheWeek, job.AtTimes),
 		gocron.NewTask(job.TaskFunc),
-		gocron.WithEventListeners(job.Hooks...),
-		gocron.WithName(job.Name),
+		opts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add weekly job: %w", err)
@@ -509,11 +550,19 @@ func (s *Scheduler) AddMonthlyJob(job *MonthJob) (gocron.Job, error) {
 	if job.TaskFunc == nil {
 		return nil, fmt.Errorf("job %s has no task function", job.Name)
 	}
+	opts := make([]gocron.JobOption, 0)
+	opts = append(opts, gocron.WithEventListeners(job.Hooks...), gocron.WithName(job.Name))
+	if job.ID != "" {
+		jobID, err := uuid.Parse(job.ID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid job ID %s: %w", job.ID, err)
+		}
+		opts = append(opts, gocron.WithIdentifier(jobID))
+	}
 	jobInstance, err := s.scheduler.NewJob(
 		gocron.MonthlyJob(job.Interval, job.DaysOfTheMonth, job.AtTimes),
 		gocron.NewTask(job.TaskFunc),
-		gocron.WithEventListeners(job.Hooks...),
-		gocron.WithName(job.Name),
+		opts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add monthly job: %w", err)

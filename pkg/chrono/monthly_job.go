@@ -12,6 +12,7 @@ import (
 )
 
 type MonthJob struct {
+	ID             string
 	Name           string
 	Interval       uint
 	DaysOfTheMonth gocron.DaysOfTheMonth
@@ -19,7 +20,7 @@ type MonthJob struct {
 	TaskFunc       any
 	Parameters     []any
 	Hooks          []gocron.EventListener
-	WatchFunc      func(event MonitorJobSpec)
+	WatchFunc      func(event JobWatchInterface)
 	timeout        time.Duration
 	err            error
 }
@@ -30,6 +31,11 @@ func NewMonthJob(interval uint, days gocron.DaysOfTheMonth, atTime gocron.AtTime
 		DaysOfTheMonth: days,
 		AtTimes:        atTime,
 	}
+}
+
+func (c *MonthJob) JobID(id string) *MonthJob {
+	c.ID = id
+	return c
 }
 
 func (c *MonthJob) Names(name string) *MonthJob {
@@ -91,7 +97,7 @@ func (c *MonthJob) Timeout(timeout time.Duration) *MonthJob {
 	return c
 }
 
-func (c *MonthJob) Watch(watch func(event MonitorJobSpec)) *MonthJob {
+func (c *MonthJob) Watch(watch func(event JobWatchInterface)) *MonthJob {
 	c.WatchFunc = watch
 	return c
 }
