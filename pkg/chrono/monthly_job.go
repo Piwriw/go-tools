@@ -33,6 +33,20 @@ func NewMonthJob(interval uint, days gocron.DaysOfTheMonth, atTime gocron.AtTime
 	}
 }
 
+func NewMonthJobAtTime(days []int, hour, minute, second int) *MonthJob {
+	if len(days) == 0 {
+		err := errors.New("at time must have at least one day")
+		return &MonthJob{
+			err: err,
+		}
+	}
+	return &MonthJob{
+		Interval:       1,
+		DaysOfTheMonth: gocron.NewDaysOfTheMonth(days[0], days[1:]...),
+		AtTimes:        gocron.NewAtTimes(gocron.NewAtTime(uint(hour), uint(minute), uint(second))),
+	}
+}
+
 func (c *MonthJob) JobID(id string) *MonthJob {
 	c.ID = id
 	return c

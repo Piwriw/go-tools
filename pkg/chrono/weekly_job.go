@@ -33,6 +33,20 @@ func NewWeeklyJob(interval uint, days gocron.Weekdays, atTime gocron.AtTimes) *W
 	}
 }
 
+func NewWeeklyJobAtTime(days []time.Weekday, hour, minute, second uint) *WeeklyJob {
+	if len(days) == 0 {
+		err := errors.New("at time must have at least one day")
+		return &WeeklyJob{
+			err: err,
+		}
+	}
+	return &WeeklyJob{
+		Interval:      1,
+		DaysOfTheWeek: gocron.NewWeekdays(days[0], days[1:]...),
+		AtTimes:       gocron.NewAtTimes(gocron.NewAtTime(hour, minute, second)),
+	}
+}
+
 func (c *WeeklyJob) JobID(id string) *WeeklyJob {
 	c.ID = id
 	return c

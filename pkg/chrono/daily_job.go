@@ -31,6 +31,13 @@ func NewDailyJob(interval uint, atTime gocron.AtTimes) *DailyJob {
 	}
 }
 
+func NewDailyJobAtTime(hour, minute, second uint) *DailyJob {
+	return &DailyJob{
+		Interval: 1,
+		AtTimes:  gocron.NewAtTimes(gocron.NewAtTime(hour, minute, second)),
+	}
+}
+
 func (c *DailyJob) JobID(id string) *DailyJob {
 	c.ID = id
 	return c
