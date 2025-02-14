@@ -52,7 +52,7 @@ func WithAliasMode(enabled bool) SchedulerOption {
 
 func WithWatch(enabled bool) SchedulerOption {
 	return func(s *SchedulerOptions) {
-		s.aliasEnable = &AliasOption{enabled: enabled}
+		s.aliasEnable = &WatchOption{enabled: enabled}
 	}
 }
 
