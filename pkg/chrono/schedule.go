@@ -11,10 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	AliasOptionName = "alias"
-)
-
 // Scheduler base gocron scheduler
 type Scheduler struct {
 	ctx          context.Context
@@ -27,24 +23,7 @@ type Scheduler struct {
 }
 
 type SchedulerOptions struct {
-	aliasEnable Option
-}
-
-type Option interface {
-	Name() string
-	Enable() bool
-}
-
-type AliasOption struct {
-	enabled bool
-}
-
-func (a *AliasOption) Name() string {
-	return AliasOptionName
-}
-
-func (a *AliasOption) Enable() bool {
-	return a.enabled
+	aliasEnable ChronoOption
 }
 
 // Enable 用于查询某个选项是否启用
@@ -62,6 +41,12 @@ func (s *Scheduler) Enable(option string) bool {
 type SchedulerOption func(*SchedulerOptions)
 
 func WithAliasMode(enabled bool) SchedulerOption {
+	return func(s *SchedulerOptions) {
+		s.aliasEnable = &AliasOption{enabled: enabled}
+	}
+}
+
+func WithWatch(enabled bool) SchedulerOption {
 	return func(s *SchedulerOptions) {
 		s.aliasEnable = &AliasOption{enabled: enabled}
 	}
@@ -197,6 +182,14 @@ func (s *Scheduler) removeAlias(alias string) {
 func (s *Scheduler) addWatchFunc(jobID string, fn func(event JobWatchInterface)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if jobID == "" {
+		slog.Warn("jobID is empty", "jobID", jobID)
+		return
+	}
+	if fn == nil {
+		slog.Warn("watchFunc is empty", "jobID", jobID)
+		return
+	}
 	s.watchFuncMap[jobID] = fn
 }
 
@@ -356,10 +349,9 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	if s.Enable(AliasOptionName) {
 		s.addAlias(job.Ali, jobInstance.ID().String())
 	}
-	if job.WatchFunc != nil {
+	if s.Enable(WatchOptionName) {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
-
 	return jobInstance, nil
 }
 
@@ -432,7 +424,7 @@ func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add once job: %w", err)
 	}
-	if job.WatchFunc != nil {
+	if s.Enable(WatchOptionName) {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
 	if s.Enable(AliasOptionName) {
@@ -503,7 +495,7 @@ func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
-	if job.WatchFunc != nil {
+	if s.Enable(WatchOptionName) {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
 	if s.Enable(AliasOptionName) {
@@ -572,7 +564,7 @@ func (s *Scheduler) AddDailyJob(job *DailyJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add job: %w", err)
 	}
-	if job.WatchFunc != nil {
+	if s.Enable(WatchOptionName) {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
 	if s.Enable(AliasOptionName) {
@@ -641,7 +633,7 @@ func (s *Scheduler) AddWeeklyJob(job *WeeklyJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add weekly job: %w", err)
 	}
-	if job.WatchFunc != nil {
+	if s.Enable(WatchOptionName) {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
 	if s.Enable(AliasOptionName) {
@@ -710,7 +702,7 @@ func (s *Scheduler) AddMonthlyJob(job *MonthJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add monthly job: %w", err)
 	}
-	if job.WatchFunc != nil {
+	if s.Enable(WatchOptionName) {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
 	if s.Enable(AliasOptionName) {
