@@ -65,6 +65,10 @@ type Event struct {
 }
 
 func (s *Scheduler) Watch() {
+	if !s.Enable(WatchOptionName) {
+		slog.Error("need watch option")
+		return
+	}
 	event := s.monitor.Watch()
 	for {
 		select {
