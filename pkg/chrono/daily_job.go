@@ -13,6 +13,7 @@ import (
 
 type DailyJob struct {
 	ID         string
+	Ali        string
 	Name       string
 	Interval   uint
 	AtTimes    gocron.AtTimes
@@ -36,6 +37,15 @@ func NewDailyJobAtTime(hour, minute, second uint) *DailyJob {
 		Interval: 1,
 		AtTimes:  gocron.NewAtTimes(gocron.NewAtTime(hour, minute, second)),
 	}
+}
+
+func (c *DailyJob) Error() string {
+	return c.err.Error()
+}
+
+func (c *DailyJob) Alias(alias string) *DailyJob {
+	c.Ali = alias
+	return c
 }
 
 func (c *DailyJob) JobID(id string) *DailyJob {

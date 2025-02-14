@@ -13,6 +13,7 @@ import (
 
 type OnceJob struct {
 	ID         string
+	Ali        string
 	Name       string
 	WorkTime   []time.Time
 	TaskFunc   any
@@ -29,6 +30,14 @@ func NewOnceJob(workTimes ...time.Time) *OnceJob {
 	}
 }
 
+func (c *OnceJob) Error() string {
+	return c.err.Error()
+}
+
+func (c *OnceJob) Alias(alias string) *OnceJob {
+	c.Ali = alias
+	return c
+}
 func (c *OnceJob) JobID(id string) *OnceJob {
 	c.ID = id
 	return c

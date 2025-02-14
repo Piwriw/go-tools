@@ -13,6 +13,7 @@ import (
 
 type WeeklyJob struct {
 	ID            string
+	Ali           string
 	Name          string
 	Interval      uint
 	DaysOfTheWeek gocron.Weekdays
@@ -45,6 +46,15 @@ func NewWeeklyJobAtTime(days []time.Weekday, hour, minute, second uint) *WeeklyJ
 		DaysOfTheWeek: gocron.NewWeekdays(days[0], days[1:]...),
 		AtTimes:       gocron.NewAtTimes(gocron.NewAtTime(hour, minute, second)),
 	}
+}
+
+func (c *WeeklyJob) Error() string {
+	return c.err.Error()
+}
+
+func (c *WeeklyJob) Alias(alias string) *WeeklyJob {
+	c.Ali = alias
+	return c
 }
 
 func (c *WeeklyJob) JobID(id string) *WeeklyJob {

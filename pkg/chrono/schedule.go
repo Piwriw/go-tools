@@ -137,6 +137,7 @@ func (s *Scheduler) RemoveJob(jobID string) error {
 	if err != nil {
 		return fmt.Errorf("invalid job ID %s: %w", jobID, err)
 	}
+	s.removeAlias(jobID)
 	s.removeWatchFunc(jobID)
 	return s.scheduler.RemoveJob(jobUUID)
 }
@@ -147,11 +148,12 @@ func (s *Scheduler) RemoveJobByAlias(alias string) error {
 	if !ok {
 		return fmt.Errorf("alias %s not found", alias)
 	}
-	s.removeWatchFunc(jobID)
 	jobUUID, err := uuid.Parse(jobID)
 	if err != nil {
 		return fmt.Errorf("invalid job ID %s: %w", jobID, err)
 	}
+	s.removeAlias(jobID)
+	s.removeWatchFunc(jobID)
 	return s.scheduler.RemoveJob(jobUUID)
 }
 
@@ -162,6 +164,33 @@ func (s *Scheduler) GetAlias(taskID string) (string, error) {
 		}
 	}
 	return "", ErrFoundAlias
+}
+
+// addAlias add alias
+func (s *Scheduler) addAlias(alias string, jobID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if alias == "" {
+		slog.Warn("alias is empty", "alias", alias)
+		return
+	}
+	if jobID == "" {
+		slog.Warn("jobID is empty", "jobID", jobID)
+		return
+	}
+	s.aliasMap[alias] = jobID
+}
+
+// removeWatchFunc  remove alias
+func (s *Scheduler) removeAlias(alias string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.aliasMap[alias]; exists {
+		delete(s.aliasMap, alias)
+		slog.Info("alias  removed", "alias", alias)
+	} else {
+		slog.Warn("alias not found in aliasMap", "alias", alias)
+	}
 }
 
 // addWatchFunc add watch Func
@@ -324,11 +353,8 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add cron job: %w", err)
 	}
-
 	if s.Enable(AliasOptionName) {
-		if job.Ali != "" {
-			s.aliasMap[job.Ali] = jobInstance.ID().String()
-		}
+		s.addAlias(job.Ali, jobInstance.ID().String())
 	}
 	if job.WatchFunc != nil {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
@@ -409,6 +435,9 @@ func (s *Scheduler) AddOnceJob(job *OnceJob) (gocron.Job, error) {
 	if job.WatchFunc != nil {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
+	if s.Enable(AliasOptionName) {
+		s.addAlias(job.Ali, jobInstance.ID().String())
+	}
 	return jobInstance, nil
 }
 
@@ -477,6 +506,9 @@ func (s *Scheduler) AddIntervalJob(job *IntervalJob) (gocron.Job, error) {
 	if job.WatchFunc != nil {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
+	if s.Enable(AliasOptionName) {
+		s.addAlias(job.Ali, jobInstance.ID().String())
+	}
 	return jobInstance, nil
 }
 
@@ -542,6 +574,9 @@ func (s *Scheduler) AddDailyJob(job *DailyJob) (gocron.Job, error) {
 	}
 	if job.WatchFunc != nil {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
+	}
+	if s.Enable(AliasOptionName) {
+		s.addAlias(job.Ali, jobInstance.ID().String())
 	}
 	return jobInstance, nil
 }
@@ -609,6 +644,9 @@ func (s *Scheduler) AddWeeklyJob(job *WeeklyJob) (gocron.Job, error) {
 	if job.WatchFunc != nil {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
 	}
+	if s.Enable(AliasOptionName) {
+		s.addAlias(job.Ali, jobInstance.ID().String())
+	}
 	return jobInstance, nil
 }
 
@@ -674,6 +712,9 @@ func (s *Scheduler) AddMonthlyJob(job *MonthJob) (gocron.Job, error) {
 	}
 	if job.WatchFunc != nil {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)
+	}
+	if s.Enable(AliasOptionName) {
+		s.addAlias(job.Ali, jobInstance.ID().String())
 	}
 	return jobInstance, nil
 }

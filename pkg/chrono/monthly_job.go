@@ -13,6 +13,7 @@ import (
 
 type MonthJob struct {
 	ID             string
+	Ali            string
 	Name           string
 	Interval       uint
 	DaysOfTheMonth gocron.DaysOfTheMonth
@@ -45,6 +46,15 @@ func NewMonthJobAtTime(days []int, hour, minute, second int) *MonthJob {
 		DaysOfTheMonth: gocron.NewDaysOfTheMonth(days[0], days[1:]...),
 		AtTimes:        gocron.NewAtTimes(gocron.NewAtTime(uint(hour), uint(minute), uint(second))),
 	}
+}
+
+func (c *MonthJob) Error() string {
+	return c.err.Error()
+}
+
+func (c *MonthJob) Alias(alias string) *MonthJob {
+	c.Ali = alias
+	return c
 }
 
 func (c *MonthJob) JobID(id string) *MonthJob {

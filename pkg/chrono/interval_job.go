@@ -13,6 +13,7 @@ import (
 
 type IntervalJob struct {
 	ID         string
+	Ali        string
 	Name       string
 	Interval   time.Duration
 	TaskFunc   any
@@ -27,6 +28,15 @@ func NewIntervalJob(interval time.Duration) *IntervalJob {
 	return &IntervalJob{
 		Interval: interval,
 	}
+}
+
+func (c *IntervalJob) Error() string {
+	return c.err.Error()
+}
+
+func (c *IntervalJob) Alias(alias string) *IntervalJob {
+	c.Ali = alias
+	return c
 }
 
 func (c *IntervalJob) JobID(id string) *IntervalJob {
