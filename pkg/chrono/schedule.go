@@ -30,11 +30,11 @@ type SchedulerOptions struct {
 // Enable 用于查询某个选项是否启用
 func (s *Scheduler) Enable(option string) bool {
 	switch option {
-	case s.schOptions.aliasEnable.Name():
+	case AliasOptionName:
 		if s.schOptions.aliasEnable != nil {
 			return s.schOptions.aliasEnable.Enable()
 		}
-	case s.schOptions.watchEnable.Name():
+	case WatchOptionName:
 		if s.schOptions.watchEnable != nil {
 			return s.schOptions.watchEnable.Enable()
 		}
