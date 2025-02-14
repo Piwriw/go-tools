@@ -24,6 +24,7 @@ type Scheduler struct {
 
 type SchedulerOptions struct {
 	aliasEnable ChronoOption
+	watchEnable ChronoOption
 }
 
 // Enable 用于查询某个选项是否启用
@@ -33,7 +34,10 @@ func (s *Scheduler) Enable(option string) bool {
 		if s.schOptions.aliasEnable != nil {
 			return s.schOptions.aliasEnable.Enable()
 		}
-		return false
+	case s.schOptions.watchEnable.Name():
+		if s.schOptions.watchEnable != nil {
+			return s.schOptions.watchEnable.Enable()
+		}
 	}
 	return false
 }
