@@ -8,4 +8,5 @@ var (
 	ErrTaskTimeout     = errors.New("task is timeout")
 	ErrValidateTimeout = errors.New("task timeout must be greater than 0")
 	ErrTaskFailed      = errors.New("task is failed")
+	ErrFoundAlias      = errors.New("can not found  by alias")
 )

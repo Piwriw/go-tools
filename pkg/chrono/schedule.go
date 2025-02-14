@@ -11,13 +11,60 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	AliasOptionName = "alias"
+)
+
 // Scheduler base gocron scheduler
 type Scheduler struct {
 	ctx          context.Context
 	scheduler    gocron.Scheduler
 	monitor      SchedulerMonitor
+	aliasMap     map[string]string
 	watchFuncMap map[string]func(event JobWatchInterface)
 	mu           sync.Mutex // 用于保护 watchFuncMap
+	schOptions   *SchedulerOptions
+}
+
+type SchedulerOptions struct {
+	aliasEnable Option
+}
+
+type Option interface {
+	Name() string
+	Enable() bool
+}
+
+type AliasOption struct {
+	enabled bool
+}
+
+func (a *AliasOption) Name() string {
+	return AliasOptionName
+}
+
+func (a *AliasOption) Enable() bool {
+	return a.enabled
+}
+
+// Enable 用于查询某个选项是否启用
+func (s *Scheduler) Enable(option string) bool {
+	switch option {
+	case s.schOptions.aliasEnable.Name():
+		if s.schOptions.aliasEnable != nil {
+			return s.schOptions.aliasEnable.Enable()
+		}
+		return false
+	}
+	return false
+}
+
+type SchedulerOption func(*SchedulerOptions)
+
+func WithAliasMode(enabled bool) SchedulerOption {
+	return func(s *SchedulerOptions) {
+		s.aliasEnable = &AliasOption{enabled: enabled}
+	}
 }
 
 type Event struct {
@@ -46,7 +93,7 @@ func (s *Scheduler) Watch() {
 }
 
 // NewScheduler creates a new scheduler.
-func NewScheduler(ctx context.Context, monitor SchedulerMonitor) (*Scheduler, error) {
+func NewScheduler(ctx context.Context, monitor SchedulerMonitor, options ...SchedulerOption) (*Scheduler, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -59,13 +106,18 @@ func NewScheduler(ctx context.Context, monitor SchedulerMonitor) (*Scheduler, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to create scheduler: %w", err)
 	}
+	schOptions := &SchedulerOptions{}
+	for _, option := range options {
+		option(schOptions)
+	}
 
-	// 返回 Scheduler
 	return &Scheduler{
 		scheduler:    s,
 		monitor:      monitor,
 		ctx:          ctx,
 		watchFuncMap: make(map[string]func(event JobWatchInterface)),
+		aliasMap:     make(map[string]string),
+		schOptions:   schOptions,
 	}, nil
 }
 
@@ -87,6 +139,29 @@ func (s *Scheduler) RemoveJob(jobID string) error {
 	}
 	s.removeWatchFunc(jobID)
 	return s.scheduler.RemoveJob(jobUUID)
+}
+
+// RemoveJobByAlias Removes a job by alias.
+func (s *Scheduler) RemoveJobByAlias(alias string) error {
+	jobID, ok := s.aliasMap[alias]
+	if !ok {
+		return fmt.Errorf("alias %s not found", alias)
+	}
+	s.removeWatchFunc(jobID)
+	jobUUID, err := uuid.Parse(jobID)
+	if err != nil {
+		return fmt.Errorf("invalid job ID %s: %w", jobID, err)
+	}
+	return s.scheduler.RemoveJob(jobUUID)
+}
+
+func (s *Scheduler) GetAlias(taskID string) (string, error) {
+	for alias, readTaskID := range s.aliasMap {
+		if taskID == readTaskID {
+			return alias, nil
+		}
+	}
+	return "", ErrFoundAlias
 }
 
 // addWatchFunc add watch Func
@@ -179,6 +254,30 @@ func (s *Scheduler) GetJobByID(jobID string) (gocron.Job, error) {
 	return nil, fmt.Errorf("job %s not found", jobID)
 }
 
+// GetJobByAlias get job BY Alias
+func (s *Scheduler) GetJobByAlias(alias string) (gocron.Job, error) {
+	jobID, ok := s.aliasMap[alias]
+	if !ok {
+		return nil, fmt.Errorf("alias %s not found", alias)
+	}
+	return s.GetJobByID(jobID)
+}
+
+// GetJobByIDOrAlias get job BY ID or Alias,first by ID, then by Alias
+func (s *Scheduler) GetJobByIDOrAlias(identifier string) (gocron.Job, error) {
+	// 优先通过ID查找
+	if jobID, err := s.GetJobByID(identifier); err == nil {
+		return jobID, nil
+	}
+
+	// 如果没有找到ID，尝试通过别名查找
+	if jobID, exists := s.aliasMap[identifier]; exists {
+		return s.GetJobByAlias(jobID)
+	}
+
+	return nil, fmt.Errorf("job with identifier %s not found", identifier)
+}
+
 // GetJobByIDS gets jobs by IDs.
 func (s *Scheduler) GetJobByIDS(jobIDS ...string) ([]gocron.Job, error) {
 	// 创建一个切片用于存储找到的任务
@@ -224,6 +323,12 @@ func (s *Scheduler) AddCronJob(job *CronJob) (gocron.Job, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add cron job: %w", err)
+	}
+
+	if s.Enable(AliasOptionName) {
+		if job.Ali != "" {
+			s.aliasMap[job.Ali] = jobInstance.ID().String()
+		}
 	}
 	if job.WatchFunc != nil {
 		s.addWatchFunc(jobInstance.ID().String(), job.WatchFunc)

@@ -17,6 +17,7 @@ const (
 
 type CronJob struct {
 	ID         string
+	Ali        string
 	Name       string
 	Expr       string
 	TaskFunc   any
@@ -35,6 +36,11 @@ func NewCronJob(expr string) *CronJob {
 
 func (c *CronJob) Error() string {
 	return c.err.Error()
+}
+
+func (c *CronJob) Alias(alias string) *CronJob {
+	c.Ali = alias
+	return c
 }
 
 func (c *CronJob) JobID(id string) *CronJob {

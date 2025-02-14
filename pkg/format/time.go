@@ -10,3 +10,11 @@ func ConvertToWeekdays(intArray []int) []time.Weekday {
 	}
 	return weekdays
 }
+
+func TimeParsedFormat(timeStr string) (*time.Time, error) {
+	parsedTime, err := time.Parse("15:04:05", timeStr)
+	if err != nil {
+		return nil, err
+	}
+	return &parsedTime, nil
+}
