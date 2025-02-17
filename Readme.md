@@ -25,3 +25,5 @@
 | Go-retry      | Go的HTTP重试工具                                             | https://github.com/avast/retry-go           |
 | snowflake     | Go的分布式ID生成器，基于雪花算法                             | https://github.com/bwmarrin/snowflake       |
 | ant           | Go的协程池                                                   | https://github.com/panjf2000/ants           |
+| progressbar   | Go的进度条                                                   | https://github.com/schollz/progressbar      |
+| gocron        | Go的定时任务框架                                             | https://github.com/go-co-op/gocron          |
