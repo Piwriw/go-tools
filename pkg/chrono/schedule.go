@@ -265,6 +265,103 @@ func (s *Scheduler) GetJobs() ([]gocron.Job, error) {
 	return s.scheduler.Jobs(), nil
 }
 
+func (s *Scheduler) GetJobLastTimeByAlias(alias string) (time.Time, error) {
+	jobID, ok := s.aliasMap[alias]
+	if !ok {
+		return time.Time{}, ErrFoundAlias
+	}
+	job, err := s.GetJobByID(jobID)
+	if err != nil {
+		return time.Time{}, err
+	}
+	lastRun, err := job.LastRun()
+	if err != nil {
+		return time.Time{}, err
+	}
+	return lastRun, nil
+}
+
+// GetJobLastTime 通过ID 查询Job的最后一次运行时间
+func (s *Scheduler) GetJobLastTime(jobID string) (time.Time, error) {
+	job, err := s.GetJobByID(jobID)
+	if err != nil {
+		return time.Time{}, err
+	}
+	lastRun, err := job.LastRun()
+	if err != nil {
+		return time.Time{}, err
+	}
+	return lastRun, nil
+}
+
+// GetJobNextTimeByAlias 通过别名 查询Job的下次运行时间
+func (s *Scheduler) GetJobNextTimeByAlias(alias string) (time.Time, error) {
+	jobID, ok := s.aliasMap[alias]
+	if !ok {
+		return time.Time{}, ErrFoundAlias
+	}
+	job, err := s.GetJobByID(jobID)
+	if err != nil {
+		return time.Time{}, err
+	}
+	nextRun, err := job.NextRun()
+	if err != nil {
+		return time.Time{}, err
+	}
+	return nextRun, nil
+}
+
+// GetJobNextTime 通过ID 查询Job的下次运行时间
+func (s *Scheduler) GetJobNextTime(jobID string) (time.Time, error) {
+	job, err := s.GetJobByID(jobID)
+	if err != nil {
+		return time.Time{}, err
+	}
+	nextRun, err := job.NextRun()
+	if err != nil {
+		return time.Time{}, err
+	}
+	return nextRun, nil
+}
+
+// GetJobLastAndNextByAlias 通过别名 查询Job的最后一次运行时间和下次运行时间
+func (s *Scheduler) GetJobLastAndNextByAlias(alias string) (time.Time, time.Time, error) {
+	jobID, ok := s.aliasMap[alias]
+	if !ok {
+		return time.Time{}, time.Time{}, ErrFoundAlias
+	}
+	job, err := s.GetJobByID(jobID)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	lastRun, err := job.LastRun()
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	nextRun, err := job.NextRun()
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	return lastRun, nextRun, nil
+}
+
+// GetJobLastAndNextByID 通过ID 查询Job的最后一次运行时间和下次运行时间
+func (s *Scheduler) GetJobLastAndNextByID(jobID string) (time.Time, time.Time, error) {
+	job, err := s.GetJobByID(jobID)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	lastRun, err := job.LastRun()
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	nextRun, err := job.NextRun()
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	return lastRun, nextRun, nil
+}
+
 func (s *Scheduler) GetJobByName(jobName string) (gocron.Job, error) {
 	for _, job := range s.scheduler.Jobs() {
 		if job.Name() == jobName {
