@@ -150,13 +150,32 @@ func (s *Scheduler) RemoveJobByAlias(alias string) error {
 	return s.scheduler.RemoveJob(jobUUID)
 }
 
-func (s *Scheduler) GetAlias(taskID string) (string, error) {
-	for alias, readTaskID := range s.aliasMap {
-		if taskID == readTaskID {
+// GetAlias get alias by jobID
+func (s *Scheduler) GetAlias(jobID string) (string, error) {
+	for alias, realJobID := range s.aliasMap {
+		if jobID == realJobID {
 			return alias, nil
 		}
 	}
 	return "", ErrFoundAlias
+}
+
+// RunJobNow run job now
+func (s *Scheduler) RunJobNow(jobID string) error {
+	job, err := s.GetJobByID(jobID)
+	if err != nil {
+		return err
+	}
+	return job.RunNow()
+}
+
+// RunJobNowByAlias run job now by alias
+func (s *Scheduler) RunJobNowByAlias(alias string) error {
+	job, err := s.GetJobByAlias(alias)
+	if err != nil {
+		return err
+	}
+	return job.RunNow()
 }
 
 // addAlias add alias
