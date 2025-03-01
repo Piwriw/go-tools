@@ -82,7 +82,7 @@ func (c *DailyJob) Task(task any, parameters ...any) *DailyJob {
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					done <- fmt.Errorf("task panicked: %v", r)
+					done <- fmt.Errorf("chrono:task panicked: %v", r)
 				}
 			}()
 			done <- callJobFunc(task, parameters...)
@@ -91,7 +91,7 @@ func (c *DailyJob) Task(task any, parameters ...any) *DailyJob {
 		select {
 		case err := <-done:
 			if err != nil {
-				slog.Error("task exec failed", "err", err)
+				slog.Error("chrono:task exec failed", "err", err)
 				return ErrTaskFailed
 			}
 		case <-ctx.Done():

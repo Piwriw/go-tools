@@ -82,7 +82,7 @@ func (c *IntervalJob) Task(task any, parameters ...any) *IntervalJob {
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					done <- fmt.Errorf("task panicked: %v", r)
+					done <- fmt.Errorf("chrono:task panicked: %v", r)
 				}
 			}()
 			done <- callJobFunc(task, parameters...)
@@ -91,7 +91,7 @@ func (c *IntervalJob) Task(task any, parameters ...any) *IntervalJob {
 		select {
 		case err := <-done:
 			if err != nil {
-				slog.Error("task exec failed", "err", err)
+				slog.Error("chrono:task exec failed", "err", err)
 				return ErrTaskFailed
 			}
 		case <-ctx.Done():

@@ -444,6 +444,47 @@ func TestIntervalJob(t *testing.T) {
 	}
 }
 
+func TestIntervalJobRe(t *testing.T) {
+	scheduler, err := NewScheduler(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := func() error {
+		fmt.Println("Task executed start")
+		time.Sleep(30 * time.Second)
+		fmt.Println("Task executed done")
+		return nil
+	}
+
+	onceJob := NewOnceJob(time.Now().Add(time.Second * 5)).
+		Names("TestOnceJob").
+		Task(task)
+	job, err := scheduler.AddOnceJob(onceJob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler.Start()
+	go func() {
+		time.Sleep(10 * time.Second)
+		if err := scheduler.RemoveJob(job.ID().String()); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	go func() {
+		for {
+			time.Sleep(5 * time.Second)
+			jobs, err := scheduler.GetJobs()
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, job := range jobs {
+				t.Log("job", job.ID(), "TASK NAME", job.Name())
+			}
+		}
+	}()
+	select {}
+}
+
 func TestOnceJob(t *testing.T) {
 	scheduler, err := NewScheduler(nil, nil)
 	if err != nil {

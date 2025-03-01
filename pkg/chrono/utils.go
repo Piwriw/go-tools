@@ -14,7 +14,7 @@ func callJobFunc(jobFunc any, params ...any) error {
 		return nil
 	}
 	if len(params) != f.Type().NumIn() {
-		return fmt.Errorf("expected function with %d parameters, got one with %d", f.Type().NumIn(), len(params))
+		return fmt.Errorf("chrono:expected function with %d parameters, got one with %d", f.Type().NumIn(), len(params))
 	}
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {

@@ -36,7 +36,7 @@ func NewMonthJob(interval uint, days gocron.DaysOfTheMonth, atTime gocron.AtTime
 
 func NewMonthJobAtTime(days []int, hour, minute, second int) *MonthJob {
 	if len(days) == 0 {
-		err := errors.New("at time must have at least one day")
+		err := errors.New("chrono:at time must have at least one day")
 		return &MonthJob{
 			err: err,
 		}
@@ -91,7 +91,7 @@ func (c *MonthJob) Task(task any, parameters ...any) *MonthJob {
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					done <- fmt.Errorf("task panicked: %v", r)
+					done <- fmt.Errorf("chrono:task panicked: %v", r)
 				}
 			}()
 			done <- callJobFunc(task, parameters...)
@@ -100,7 +100,7 @@ func (c *MonthJob) Task(task any, parameters ...any) *MonthJob {
 		select {
 		case err := <-done:
 			if err != nil {
-				slog.Error("task exec failed", "err", err)
+				slog.Error("chrono:task exec failed", "err", err)
 				return ErrTaskFailed
 			}
 		case <-ctx.Done():

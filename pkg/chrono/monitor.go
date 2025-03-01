@@ -93,7 +93,7 @@ func newDefaultSchedulerMonitor() *defaultSchedulerMonitor {
 func (s *defaultSchedulerMonitor) IncrementJob(id uuid.UUID, name string, tags []string, status gocron.JobStatus) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	slog.Debug("IncrementJob", "JobID", id, "JobName", name, "tags", tags, "status", status)
+	slog.Debug("chrono:IncrementJob", "JobID", id, "JobName", name, "tags", tags, "status", status)
 	_, ok := s.counter[name]
 	if !ok {
 		s.counter[name] = 0
@@ -105,7 +105,7 @@ func (s *defaultSchedulerMonitor) IncrementJob(id uuid.UUID, name string, tags [
 func (s *defaultSchedulerMonitor) RecordJobTiming(startTime, endTime time.Time, id uuid.UUID, name string, tags []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	slog.Debug("RecordJobTiming", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
+	slog.Debug("chrono:RecordJobTiming", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
 		"endTime", endTime.Format("2006-01-02 15:04:05"), "duration", endTime.Sub(startTime), "tags", tags)
 	_, ok := s.time[name]
 	if !ok {
@@ -118,7 +118,7 @@ func (s *defaultSchedulerMonitor) RecordJobTiming(startTime, endTime time.Time, 
 func (s *defaultSchedulerMonitor) RecordJobTimingWithStatus(startTime, endTime time.Time, id uuid.UUID, name string, tags []string, status gocron.JobStatus, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	slog.Debug("RecordJobTimingWithStatus", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
+	slog.Debug("chrono:RecordJobTimingWithStatus", "JobID", id, "JobName", name, "startTime", startTime.Format("2006-01-02 15:04:05"),
 		"endTime", endTime.Format("2006-01-02 15:04:05"), "duration", endTime.Sub(startTime), "status", status, "err", err)
 	jobSpec := NewMonitorJobSpec(id, name, startTime, endTime, tags, status, err)
 	s.jobChan <- jobSpec
