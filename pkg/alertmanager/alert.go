@@ -2,7 +2,6 @@ package alertmanager
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -12,11 +11,12 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/prometheus/alertmanager/template"
+	"gopkg.in/gomail.v2"
 
 	"github.com/prometheus/alertmanager/notify/webhook"
-	"gopkg.in/gomail.v2"
-	"yunqutech.com/hawkeye/athena/pkg/http"
+	"github.piwriw.go-tools/pkg/http"
 )
 
 // AlertMethod 告警策略接口
@@ -28,19 +28,6 @@ type AlertMethod interface {
 // AlertContext 告警上下文接口，不同策略有不同的上下文
 type AlertContext interface {
 	GetMethod() string
-}
-
-type QCloudAlertContext struct {
-	API    string `json:"api"`
-	AppID  int    `json:"app_id"`
-	AppKey string `json:"app_key"`
-	Sign   string `json:"sign"`
-	TplID  int    `json:"tpl_id"`
-	Mobile int    `json:"mobile"`
-}
-
-func (q *QCloudAlertContext) GetMethod() string {
-	return MethodQCloud
 }
 
 // EmailAlertContext 邮件告警上下文
@@ -134,6 +121,7 @@ func (l *LarkAlertContext) GetMethod() string {
 
 // EmailAlert 邮件告警策略
 type EmailAlert struct {
+	limitFunc LimitOption
 }
 
 func (e *EmailAlert) Execute(c AlertContext, users []string) error {
@@ -145,7 +133,10 @@ func (e *EmailAlert) Execute(c AlertContext, users []string) error {
 	// 执行邮件发送操作
 	for _, user := range users {
 		var message string
-		for _, wa := range emailContext.Message.Alerts {
+		for idx, wa := range emailContext.Message.Alerts {
+			if e.limitFunc != nil && shouldLimit(e.limitFunc.Allow, idx, emailContext.Message.Alerts) {
+				return errors.New("alert is limited")
+			}
 			severity := wa.Labels["severity"]
 			ss := strings.Split(severity, ":")
 			alertStatus := AlertStatusFiring
@@ -239,7 +230,8 @@ func (e *EmailAlert) ExecuteTest(c AlertContext) error {
 
 // WechatAlert 微信告警策略
 type WechatAlert struct {
-	client *http.Client
+	client    *http.Client
+	limitFunc LimitOption
 }
 
 type wechatRes struct {
@@ -252,7 +244,10 @@ func (w *WechatAlert) Execute(c AlertContext, users []string) error {
 	if !ok {
 		return errors.New("invalid context type for WechatAlert")
 	}
-	for _, wa := range wechatContext.Message.Alerts {
+	for idx, wa := range wechatContext.Message.Alerts {
+		if w.limitFunc != nil && shouldLimit(w.limitFunc.Allow, idx, wechatContext.Message.Alerts) {
+			return errors.New("alert is limited")
+		}
 		severity := wa.Labels["severity"]
 		severities := strings.Split(severity, ":")
 		status := severities[0]
@@ -261,7 +256,7 @@ func (w *WechatAlert) Execute(c AlertContext, users []string) error {
 			status = "恢复"
 		}
 
-		message := fmt.Sprintf(AgilexFormat,
+		message := fmt.Sprintf(AlertFormat,
 			wechatContext.Title, typ, wa.Labels["name"], wa.Labels["ip"], wa.Labels["alertname"], status, wa.Annotations["description"], wa.StartsAt.Format("2006-01-02 15:04:05"))
 		data := map[string]any{
 			"msgtype": "text",
@@ -321,7 +316,19 @@ func (w *WechatAlert) ExecuteTest(c AlertContext) error {
 
 // DingtalkAlert 钉钉告警策略
 type DingtalkAlert struct {
-	client *http.Client
+	client    *http.Client
+	limitFunc LimitOption
+}
+
+func shouldLimit(limitFunc func() bool, idx int, alerts template.Alerts) bool {
+	if limitFunc != nil && !limitFunc() {
+		slog.Warn("Current Alert is Limited",
+			slog.Int("remaining_alert_count", len(alerts[idx:])),
+			slog.Any("remaining_alerts", alerts[idx:]),
+		)
+		return true
+	}
+	return false
 }
 
 func (d *DingtalkAlert) Execute(c AlertContext, users []string) error {
@@ -329,7 +336,10 @@ func (d *DingtalkAlert) Execute(c AlertContext, users []string) error {
 	if !ok {
 		return errors.New("invalid context type for DingtalkAlert")
 	}
-	for _, wa := range dingtalkContext.Message.Alerts {
+	for idx, wa := range dingtalkContext.Message.Alerts {
+		if d.limitFunc != nil && shouldLimit(d.limitFunc.Allow, idx, dingtalkContext.Message.Alerts) {
+			return errors.New("alert is limited")
+		}
 		severity := wa.Labels["severity"]
 		ss := strings.Split(severity, ":")
 		status := ss[0]
@@ -337,7 +347,7 @@ func (d *DingtalkAlert) Execute(c AlertContext, users []string) error {
 		if wa.Status == "resolved" {
 			status = "恢复"
 		}
-		message := fmt.Sprintf(AgilexFormat,
+		message := fmt.Sprintf(AlertFormat,
 			dingtalkContext.Title, typ, wa.Labels["name"], wa.Labels["ip"], wa.Labels["alertname"], status, wa.Annotations["description"], wa.StartsAt.Format("2006-01-02 15:04:05"))
 		data := map[string]any{
 			"msgtype": "text",
@@ -404,55 +414,10 @@ func (d *DingtalkAlert) ExecuteTest(c AlertContext) error {
 	return nil
 }
 
-type QCloudAlert struct {
-	client *http.Client
-}
-
-// Execute 没有找到相关代码
-func (q *QCloudAlert) Execute(c AlertContext, users []string) error {
-	return nil
-}
-
-func (q *QCloudAlert) ExecuteTest(c AlertContext) error {
-	qcContext, ok := c.(*QCloudAlertContext)
-	if !ok {
-		return errors.New("invalid context type for QCloudAlert")
-	}
-	// 执行脚本
-	ts := time.Now().Unix()
-	s := fmt.Sprintf("appkey=%s&random=7226249334&time=%d&mobile=%d", qcContext.AppKey, ts, qcContext.Mobile)
-	h := sha256.New()
-	_, err := h.Write([]byte(s))
-	if err != nil {
-		return err
-	}
-	sig := fmt.Sprintf("%x", h.Sum(nil))
-	data := map[string]any{
-		"ext":    "",
-		"extend": "",
-		"params": []string{},
-		"sig":    sig,
-		"sign":   qcContext.Sign,
-		"tel": map[string]string{
-			"mobile":     strconv.Itoa(qcContext.Mobile),
-			"nationcode": "86",
-		},
-		"time":   ts,
-		"tpl_id": qcContext.TplID,
-	}
-	req, _ := json.Marshal(data)
-	url := fmt.Sprintf("%s?sdkappid=%d&random=7226249334", qcContext.API, qcContext.AppID)
-	_, err = q.client.JSON().Post(url, req)
-	if err != nil {
-		slog.Error("QCloud, Send data to QCloud failed, ", slog.Any("err", err))
-		return err
-	}
-	return nil
-}
-
 // ScriptAlert 脚本告警策略
 type ScriptAlert struct {
-	client *http.Client
+	client    *http.Client
+	limitFunc LimitOption
 }
 
 func (s *ScriptAlert) Execute(c AlertContext, users []string) error {
@@ -463,7 +428,10 @@ func (s *ScriptAlert) Execute(c AlertContext, users []string) error {
 	// 执行脚本
 	var errArr error
 	for _, touser := range users {
-		for _, alert := range scriptContext.Message.Alerts {
+		for idx, alert := range scriptContext.Message.Alerts {
+			if s.limitFunc != nil && shouldLimit(s.limitFunc.Allow, idx, scriptContext.Message.Alerts) {
+				return errors.New("alert is limited")
+			}
 			severity := alert.Labels["severity"]
 			ss := strings.Split(severity, ":")
 			if ss[0] == "严重" || ss[0] == "致命" {
@@ -513,7 +481,8 @@ func (s *ScriptAlert) ExecuteTest(c AlertContext) error {
 
 // LarkAlert  Lark告警策略
 type LarkAlert struct {
-	client *http.Client
+	client    *http.Client
+	limitFunc LimitOption
 }
 
 const larkTemplate = `<at user_id="%s">Tom</at>`
@@ -538,7 +507,10 @@ func (l *LarkAlert) Execute(c AlertContext, users []string) error {
 	// 执行 Lark 发送操作
 	slog.Debug("Lark is ExecuteTest", slog.Any("sendToUser", users), slog.Any("Context", larkContext))
 
-	for _, wa := range larkContext.Message.Alerts {
+	for idx, wa := range larkContext.Message.Alerts {
+		if l.limitFunc != nil && shouldLimit(l.limitFunc.Allow, idx, larkContext.Message.Alerts) {
+			return errors.New("alert is limited")
+		}
 		severity := wa.Labels["severity"]
 		severities := strings.Split(severity, ":")
 		status := severities[0]
@@ -546,7 +518,7 @@ func (l *LarkAlert) Execute(c AlertContext, users []string) error {
 		if wa.Status == "resolved" {
 			status = "恢复"
 		}
-		message := fmt.Sprintf(AgilexFormat,
+		message := fmt.Sprintf(AlertFormat,
 			larkContext.Title, typ, wa.Labels["name"], wa.Labels["ip"], wa.Labels["alertname"], status, wa.Annotations["description"], wa.StartsAt.Format("2006-01-02 15:04:05"))
 		data := map[string]any{
 			"msg_type": "text",
@@ -612,25 +584,45 @@ func (l *LarkAlert) ExecuteTest(c AlertContext) error {
 
 type AlertStrategyManager struct {
 	strategies map[string]AlertMethod
+	limitFunc  LimitOption
 }
 
-func NewAlertStrategyManager() *AlertStrategyManager {
+// registerStrategies 统一注册所有告警策略
+func (manager *AlertStrategyManager) registerStrategies(client *http.Client) {
+	manager.strategies[MethodEmail] = &EmailAlert{}
+	manager.strategies[MethodWechat] = &WechatAlert{client: client}
+	manager.strategies[MethodDingtalk] = &DingtalkAlert{client: client}
+	manager.strategies[MethodScript] = &ScriptAlert{client: client}
+	manager.strategies[MethodLark] = &LarkAlert{client: client}
+}
+
+func NewAlertStrategyManager(options ...Option) *AlertStrategyManager {
 	manager := &AlertStrategyManager{
 		strategies: make(map[string]AlertMethod),
 	}
+
 	client := http.NewHTTPClient()
 	// 注册所有告警策略
-	manager.strategies[MethodEmail] = &EmailAlert{}
-	manager.strategies[MethodWechat] = &WechatAlert{
-		client: client,
+	manager.registerStrategies(client)
+	for _, option := range options {
+		option(manager)
 	}
-	manager.strategies[MethodDingtalk] = &DingtalkAlert{
-		client: client,
+	if manager.limitFunc != nil {
+		manager.strategies[MethodEmail] = &EmailAlert{
+			limitFunc: manager.limitFunc,
+		}
+		manager.strategies[MethodWechat] = &WechatAlert{
+			client:    client,
+			limitFunc: manager.limitFunc,
+		}
+		manager.strategies[MethodDingtalk] = &DingtalkAlert{
+			client:    client,
+			limitFunc: manager.limitFunc,
+		}
+		manager.strategies[MethodScript] = &ScriptAlert{client: client,
+			limitFunc: manager.limitFunc}
+		manager.strategies[MethodLark] = &LarkAlert{client: client, limitFunc: manager.limitFunc}
 	}
-	manager.strategies[MethodScript] = &ScriptAlert{client: client}
-	manager.strategies[MethodLark] = &LarkAlert{client: client}
-	manager.strategies[MethodQCloud] = &QCloudAlert{client: client}
-
 	return manager
 }
 

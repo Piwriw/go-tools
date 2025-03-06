@@ -6,5 +6,4 @@ const (
 	MethodWechat   = "wechat"
 	MethodDingtalk = "dingtalk"
 	MethodLark     = "lark"
-	MethodQCloud   = "message_qcloud"
 )
