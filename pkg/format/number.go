@@ -3,7 +3,6 @@ package format
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 )
 
@@ -32,8 +31,9 @@ func ToFloat64(value interface{}) (float64, error) {
 	case uint32:
 		return float64(v), nil
 	case uint64:
-		if v > math.MaxFloat64 {
-			return 0, fmt.Errorf("value too large to convert: %d", v)
+		const maxExactFloat64 = 1<<53 - 1 // 9007199254740991 (float64 能精准表示的最大整数)
+		if v > maxExactFloat64 {
+			return 0, fmt.Errorf("value too large to convert without precision loss: %d", v)
 		}
 		return float64(v), nil
 	case json.Number:

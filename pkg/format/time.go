@@ -14,8 +14,8 @@ func CSTTime() (time.Time, error) {
 	return time.Now().In(loc), nil
 }
 
-// TimeZone 返回指定时区的当前时间
-func TimeZone(timezone string) (time.Time, error) {
+// TimeZoneTime 返回指定时区的当前时间
+func TimeZoneTime(timezone string) (time.Time, error) {
 	// 默认时区
 	locName := "Asia/Shanghai"
 	if timezone != "" {
