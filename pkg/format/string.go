@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// ConvertMapKeysToUpper 将 map 的所有 key 转换为大写
 func ConvertMapKeysToUpper(input map[string]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 
