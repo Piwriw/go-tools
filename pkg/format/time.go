@@ -5,6 +5,22 @@ import (
 	"time"
 )
 
+// TimeStampDateTime 将时间戳转换为时间格式
+func TimeStampDateTime(timestamp int64) (string, error) {
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		return "", err
+	}
+	t := time.Unix(timestamp, 0).In(loc)
+	return t.Format(time.DateTime), nil
+}
+
+// TimeStampFormat 将时间戳转换为指定格式的时间字符串
+func TimeStampFormat(timestamp int64, layout string) (string, error) {
+	t := time.Unix(timestamp, 0)
+	return t.Format(layout), nil
+}
+
 // CSTTime 返回当前北京时间（CST）
 func CSTTime() (time.Time, error) {
 	loc, err := time.LoadLocation("Asia/Shanghai")
