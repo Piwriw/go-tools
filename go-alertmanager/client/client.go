@@ -1,21 +1,18 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
 
-	"github.com/prometheus/alertmanager/api/v2/client/alertgroup"
-
-	"github.com/prometheus/alertmanager/api/v2/client/receiver"
-
-	"github.com/pkg/errors"
-
-	"github.com/prometheus/alertmanager/api/v2/models"
-
 	httptransport "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
 	"github.com/prometheus/alertmanager/api/v2/client"
 	"github.com/prometheus/alertmanager/api/v2/client/alert"
+	"github.com/prometheus/alertmanager/api/v2/client/alertgroup"
+	"github.com/prometheus/alertmanager/api/v2/client/receiver"
+	"github.com/prometheus/alertmanager/api/v2/models"
 )
 
 var defaultTimeout = 10 * time.Second
@@ -23,7 +20,15 @@ var defaultTimeout = 10 * time.Second
 type AlertManagerClient struct {
 	client    *client.AlertmanagerAPI
 	clientOpt *clientOpt
+	formats   strfmt.Registry
 	err       error
+}
+type AlertManagerClientOpt func(*AlertManagerClient)
+
+func WithRegistry(registry strfmt.Registry) AlertManagerClientOpt {
+	return func(c *AlertManagerClient) {
+		c.formats = registry
+	}
 }
 
 type clientOpt struct {
@@ -41,11 +46,21 @@ func ExtractServerName(fullURL string) (string, error) {
 	return parsedURL.Host, nil
 }
 
-func NewClientWithPort(ip string, port int) *AlertManagerClient {
+func NewClientWithPort(ip string, port int, opts ...AlertManagerClientOpt) *AlertManagerClient {
 	address := fmt.Sprintf("%s:%d", ip, port)
 	transport := httptransport.New(address, "/api/v2", []string{"http"})
 	amClient := client.New(transport, nil)
-	return &AlertManagerClient{client: amClient, clientOpt: defaultClientOpt()}
+	cli := &AlertManagerClient{
+		client:    amClient,
+		clientOpt: defaultClientOpt(),
+		formats:   strfmt.Default,
+	}
+
+	// 解析可选参数
+	for _, opt := range opts {
+		opt(cli)
+	}
+	return cli
 }
 
 func defaultClientOpt() *clientOpt {
@@ -155,7 +170,7 @@ func (am *AlertManagerClient) GetAlerts() ([]*models.GettableAlert, error) {
 	}
 	alertRes, err := am.client.Alert.GetAlerts(params)
 	if err != nil {
-		return nil, errors.Errorf("error fetching alerts: %v", err)
+		return nil, fmt.Errorf("error fetching alerts: %v", err)
 	}
 	if !alertRes.IsSuccess() {
 		return nil, errors.New("error getting alerts")
@@ -168,6 +183,12 @@ func (am *AlertManagerClient) AddAlert(ale *models.PostableAlert) error {
 	if am.err != nil {
 		return am.err
 	}
+	if err := ale.Validate(am.formats); err != nil {
+		am.err = errors.Join(am.err, err)
+	}
+	if am.err != nil {
+		return am.err
+	}
 	alerts := make([]*models.PostableAlert, 0)
 	alerts = append(alerts, ale)
 	params := &alert.PostAlertsParams{
@@ -177,7 +198,7 @@ func (am *AlertManagerClient) AddAlert(ale *models.PostableAlert) error {
 	params.WithTimeout(am.clientOpt.timeout)
 	_, err := am.client.Alert.PostAlerts(params, nil)
 	if err != nil {
-		return errors.Errorf("error posting alert: %v", err)
+		return fmt.Errorf("error posting alert: %v", err)
 	}
 	return nil
 }
@@ -187,13 +208,21 @@ func (am *AlertManagerClient) AddAlerts(alerts []*models.PostableAlert) error {
 	if am.err != nil {
 		return am.err
 	}
+	for _, alert := range alerts {
+		if err := alert.Validate(am.formats); err != nil {
+			am.err = errors.Join(am.err, err)
+		}
+	}
+	if am.err != nil {
+		return am.err
+	}
 	params := &alert.PostAlertsParams{
 		Alerts: alerts,
 	}
 	params.WithTimeout(am.clientOpt.timeout)
 	_, err := am.client.Alert.PostAlerts(params)
 	if err != nil {
-		return errors.Errorf("error posting alerts: %v", err)
+		return fmt.Errorf("error posting alerts: %v", err)
 	}
 	return nil
 }
@@ -207,7 +236,7 @@ func (am *AlertManagerClient) GetReceivers() ([]*models.Receiver, error) {
 	params.WithTimeout(am.clientOpt.timeout)
 	receiverRes, err := am.client.Receiver.GetReceivers(params)
 	if err != nil {
-		return nil, errors.Errorf("error get alerts: %v", err)
+		return nil, fmt.Errorf("error get alerts: %v", err)
 	}
 	if !receiverRes.IsSuccess() {
 		return nil, errors.New("error getting alerts")
@@ -227,10 +256,17 @@ func (am *AlertManagerClient) GetAlertGroups() ([]*models.AlertGroup, error) {
 	params.WithTimeout(am.clientOpt.timeout)
 	receiverRes, err := am.client.Alertgroup.GetAlertGroups(params)
 	if err != nil {
-		return nil, errors.Errorf("error get alerts: %v", err)
+		return nil, fmt.Errorf("error get alerts: %v", err)
 	}
 	if !receiverRes.IsSuccess() {
 		return nil, errors.New("error getting alerts")
 	}
 	return receiverRes.GetPayload(), err
+}
+
+func (am *AlertManagerClient) ValidateRules() ([]*models.AlertGroup, error) {
+	if am.err != nil {
+		return nil, am.err
+	}
+
 }

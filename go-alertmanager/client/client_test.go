@@ -3,7 +3,27 @@ package client
 import (
 	"testing"
 	"time"
+
+	"github.com/go-openapi/strfmt"
+	"github.com/prometheus/alertmanager/api/v2/models"
 )
+
+func TestAddAlerts(t *testing.T) {
+	client := NewClient("10.0.0.195:9003")
+	var (
+		alerts = []*models.PostableAlert{
+			{
+				Annotations: models.LabelSet{
+					"name": "test",
+				},
+				EndsAt:   strfmt.DateTime{},
+				StartsAt: strfmt.DateTime{},
+				Alert:    models.Alert{},
+			},
+		}
+	)
+	client.AddAlerts()
+}
 
 func TestGetAlertGroups(t *testing.T) {
 	client := NewClient("10.0.0.195:9003")
@@ -40,12 +60,12 @@ func TestGetAlert(t *testing.T) {
 }
 
 func TestGetAlerts(t *testing.T) {
-	//name, err2 := ExtractServerName("http://notice:9003")
-	//if err2 != nil {
+	// name, err2 := ExtractServerName("http://notice:9003")
+	// if err2 != nil {
 	//	t.Error(err2)
-	//}
-	//t.Log(name)
-	//false, false, 0, , "severity=\"致命:#4A4A4A\""
+	// }
+	// t.Log(name)
+	// false, false, 0, , "severity=\"致命:#4A4A4A\""
 	client := NewClient("10.0.0.195:9003")
 	_, err := client.Silenced(false).
 		Filter("instance=~\"instance-75|instance-56|instance-58\"").Inhibited(false).GetAlerts()
