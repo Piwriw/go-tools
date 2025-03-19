@@ -7,6 +7,10 @@ import (
 
 type Option func(*AlertStrategyManager)
 
+type hookOption interface {
+	Allow() bool
+}
+
 type LimitOption interface {
 	Allow() bool
 }

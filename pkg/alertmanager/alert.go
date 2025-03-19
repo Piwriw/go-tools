@@ -15,7 +15,6 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"gopkg.in/gomail.v2"
 
-	"github.com/prometheus/alertmanager/notify/webhook"
 	"github.piwriw.go-tools/pkg/http"
 )
 
@@ -23,100 +22,6 @@ import (
 type AlertMethod interface {
 	Execute(c AlertContext, users []string) error
 	ExecuteTest(c AlertContext) error
-}
-
-// AlertContext 告警上下文接口，不同策略有不同的上下文
-type AlertContext interface {
-	GetMethod() string
-}
-
-// EmailAlertContext 邮件告警上下文
-type EmailAlertContext struct {
-	Message          webhook.Message
-	Title            string
-	SMTPSmarthost    string `json:"smtp_smarthost"`     // 邮件地址
-	SMTPFrom         string `json:"smtp_from"`          // 邮件发送方
-	SMTPAuthUsername string `json:"smtp_auth_username"` // 邮件用户
-	SMTPAuthPassword string `json:"smtp_auth_password"` // 邮件密码
-	SMTPRequireTLS   bool   `json:"smtp_require_tls"`   // 邮件是否使用tls
-	SendTo           string `json:"send_to"`            // 发送给谁，测试使用字段
-}
-
-func (e *EmailAlertContext) GetMethod() string {
-	return MethodEmail
-}
-
-// WechatAlertContext 微信告警上下文
-type WechatAlertContext struct {
-	Message webhook.Message
-	Title   string `json:"title"`
-	// todo 删除wechat,只保留Webhook 这是个历史一致问题
-	WechatWebhook string `json:"wechat_webhook"`
-}
-
-func (w *WechatAlertContext) GetMethod() string {
-	return MethodWechat
-}
-
-// DingtalkAlertContext 钉钉告警上下文
-type DingtalkAlertContext struct {
-	Message webhook.Message
-	Title   string `json:"title"`
-	Webhook string `json:"webhook"` // 钉钉配置
-}
-
-func (d *DingtalkAlertContext) GetMethod() string {
-	return MethodDingtalk
-}
-
-// ScriptAlertContext 脚本告警上下文
-type ScriptAlertContext struct {
-	Message        webhook.Message
-	Title          string `json:"title"`
-	ScriptReceiver string `json:"script_receiver"`
-	AlertID        string `json:"alert_id"`
-	Script         string `json:"script"`
-	Args           Arg    `json:"args"`
-}
-
-func (s *ScriptAlertContext) GetAlertString(fingerprint string) string {
-	for _, alert := range s.Message.Alerts {
-		if fingerprint == alert.Fingerprint {
-			marshal, err := json.Marshal(alert)
-			if err != nil {
-				return ""
-			}
-			return string(marshal)
-		}
-	}
-	return ""
-}
-
-type Arg struct {
-	ConfigFile string `json:"configFile"`
-}
-
-func (a *Arg) String() string {
-	marshal, err := json.Marshal(a)
-	if err != nil {
-		return ""
-	}
-	return string(marshal)
-}
-
-func (s *ScriptAlertContext) GetMethod() string {
-	return MethodScript
-}
-
-// LarkAlertContext Lark告警上下文
-type LarkAlertContext struct {
-	Message webhook.Message
-	Title   string `json:"title"`
-	Webhook string `json:"webhook"`
-}
-
-func (l *LarkAlertContext) GetMethod() string {
-	return MethodLark
 }
 
 // EmailAlert 邮件告警策略
@@ -317,7 +222,22 @@ func (w *WechatAlert) ExecuteTest(c AlertContext) error {
 // DingtalkAlert 钉钉告警策略
 type DingtalkAlert struct {
 	client    *http.Client
+	hook      *HookHandler
 	limitFunc LimitOption
+}
+
+func NewDingtalkAlert() *DingtalkAlert {
+	return &DingtalkAlert{}
+}
+
+func (d *DingtalkAlert) WithLimit(limit LimitOption) *DingtalkAlert {
+	d.limitFunc = limit
+	return d
+}
+
+func (d *DingtalkAlert) WithHook(hook *HookHandler) *DingtalkAlert {
+	d.hook = hook
+	return d
 }
 
 func shouldLimit(limitFunc func() bool, idx int, alerts template.Alerts) bool {
@@ -332,6 +252,9 @@ func shouldLimit(limitFunc func() bool, idx int, alerts template.Alerts) bool {
 }
 
 func (d *DingtalkAlert) Execute(c AlertContext, users []string) error {
+	if callBeforeHook(d.hook, c) != nil {
+		return ErrorBeforeHook
+	}
 	dingtalkContext, ok := c.(*DingtalkAlertContext)
 	if !ok {
 		return errors.New("invalid context type for DingtalkAlert")
@@ -374,6 +297,9 @@ func (d *DingtalkAlert) Execute(c AlertContext, users []string) error {
 			slog.Error("LarkAlert, Send data to LarkAlert failed, ", slog.Any("err", dingTalkRes))
 			return errors.New(dingTalkRes.Errmsg)
 		}
+	}
+	if callAfterHook(d.hook, c) != nil {
+		return ErrorAfterHook
 	}
 	return nil
 }
@@ -418,9 +344,13 @@ func (d *DingtalkAlert) ExecuteTest(c AlertContext) error {
 type ScriptAlert struct {
 	client    *http.Client
 	limitFunc LimitOption
+	hook      *HookHandler
 }
 
 func (s *ScriptAlert) Execute(c AlertContext, users []string) error {
+	if callBeforeHook(s.hook, c) != nil {
+		return ErrorBeforeHook
+	}
 	scriptContext, ok := c.(*ScriptAlertContext)
 	if !ok {
 		return errors.New("invalid context type for ScriptAlert")
@@ -458,6 +388,9 @@ func (s *ScriptAlert) Execute(c AlertContext, users []string) error {
 				}
 			}
 		}
+	}
+	if callAfterHook(s.hook, c) != nil {
+		return ErrorAfterHook
 	}
 	return nil
 }
@@ -585,6 +518,7 @@ func (l *LarkAlert) ExecuteTest(c AlertContext) error {
 type AlertStrategyManager struct {
 	strategies map[string]AlertMethod
 	limitFunc  LimitOption
+	hookFunc   LimitOption
 }
 
 // registerStrategies 统一注册所有告警策略
@@ -594,6 +528,18 @@ func (manager *AlertStrategyManager) registerStrategies(client *http.Client) {
 	manager.strategies[MethodDingtalk] = &DingtalkAlert{client: client}
 	manager.strategies[MethodScript] = &ScriptAlert{client: client}
 	manager.strategies[MethodLark] = &LarkAlert{client: client}
+}
+
+// RegisterStrategy 统一注册所有告警策略
+func (manager *AlertStrategyManager) RegisterStrategy(methodName string, alertMethod AlertMethod) error {
+	_, ok := manager.strategies[methodName]
+	// Same Method Name also can register
+	manager.strategies[methodName] = alertMethod
+	if ok {
+		slog.Warn("registerStrategy is same name", slog.Any("methodName", methodName))
+		return ErrorSameMethod
+	}
+	return nil
 }
 
 func NewAlertStrategyManager(options ...Option) *AlertStrategyManager {
