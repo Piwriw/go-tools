@@ -1,14 +1,14 @@
-package alertmanager
+package common
 
 import (
 	"sync"
 	"time"
 )
 
-type Option func(*AlertStrategyManager)
+type HookFunc func(c AlertContext) error
 
-type hookOption interface {
-	Allow() bool
+type HookOption interface {
+	Hook() bool
 }
 
 type LimitOption interface {

@@ -1,7 +1,7 @@
-package alertmanager
+package common
 
 const (
-	MethodScript   = "message_script"
+	MethodScript   = "script"
 	MethodEmail    = "email"
 	MethodWechat   = "wechat"
 	MethodDingtalk = "dingtalk"
