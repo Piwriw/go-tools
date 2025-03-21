@@ -49,7 +49,9 @@ func SliceOrderBy(rows any, orderBy string, orderList []any) error {
 	}
 
 	// 解析字段类型
-	sort.Slice(slice.Interface(), func(i, j int) bool {
+	// SliceStable 不会影响原来的排序
+	// sort 可能影响原来的排序
+	sort.SliceStable(slice.Interface(), func(i, j int) bool {
 		vi := slice.Index(i).FieldByName(orderBy)
 		vj := slice.Index(j).FieldByName(orderBy)
 
