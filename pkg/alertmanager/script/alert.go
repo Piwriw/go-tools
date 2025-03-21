@@ -9,9 +9,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.piwriw.go-tools/pkg/alertmanager/common"
-
 	"github.com/prometheus/alertmanager/template"
+	"github.piwriw.go-tools/pkg/alertmanager/common"
 	"github.piwriw.go-tools/pkg/http"
 )
 

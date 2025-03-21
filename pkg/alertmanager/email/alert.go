@@ -8,10 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.piwriw.go-tools/pkg/alertmanager/common"
-
 	"github.com/prometheus/alertmanager/template"
-
+	"github.piwriw.go-tools/pkg/alertmanager/common"
 	"gopkg.in/gomail.v2"
 )
 
