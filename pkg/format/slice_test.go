@@ -3,42 +3,109 @@ package format
 import (
 	"fmt"
 	"testing"
+
+	"github.com/mohae/deepcopy"
+
+	"github.com/stretchr/testify/require"
 )
 
 type User struct {
-	Name string
-	Age  int
+	ID    int
+	Name  string
+	Role  string
+	Score float64
 }
 
-func Test(t *testing.T) {
-	users := []any{
-		[]byte("A"),
+func generateTestData(n int) []User {
+	users := make([]User, n)
+	roles := []string{"admin", "editor", "viewer", "guest"}
+	for i := 0; i < n; i++ {
+		users[i] = User{
+			ID:    i + 1,
+			Name:  fmt.Sprintf("User%d", i+1),
+			Role:  roles[i%len(roles)],
+			Score: float64(i%100) + 0.5,
+		}
 	}
-	// 自定义排序顺序
-	customOrder := []any{"C", "B"}
-	err := SliceOrderBy(&users, "Name", customOrder)
-	if err != nil {
-		fmt.Println("Error:", err)
-	} else {
-		fmt.Println(users)
+	return users
+}
+
+func TestBasicFunctionality(t *testing.T) {
+	users := generateTestData(100)
+	orderBy := "Role"
+	orderList := []any{"admin", "editor", "viewer", "guest"}
+
+	// 测试V1
+	err := SliceOrderBy(&users, orderBy, orderList)
+	require.NoError(t, err)
+
+	// 测试V2
+	usersV2 := generateTestData(100)
+	err = SliceOrderByV2(&usersV2, orderBy, orderList)
+	require.NoError(t, err)
+
+	// 验证结果是否一致
+	for i := range users {
+		require.Equal(t, users[i].Role, usersV2[i].Role)
+	}
+}
+func BenchmarkSliceOrderBy(b *testing.B) {
+	sizes := []int{100, 1000, 10000, 100000, 1000000}
+	orderBy := "Role"
+	orderList := []any{"admin", "editor", "viewer", "guest"}
+
+	for _, size := range sizes {
+		b.Run(fmt.Sprintf("Size%d", size), func(b *testing.B) {
+			users := generateTestData(size)
+			b.ResetTimer()
+
+			b.Run("V1", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					usersCopy := make([]User, len(users))
+					copy(usersCopy, users)
+					_ = SliceOrderBy(&usersCopy, orderBy, orderList)
+				}
+			})
+
+			b.Run("V2", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					usersCopy := make([]User, len(users))
+					copy(usersCopy, users)
+					_ = SliceOrderByV2(&usersCopy, orderBy, orderList)
+				}
+			})
+		})
 	}
 }
 
-func TestOrder(t *testing.T) {
-	users := []User{
-		{"B", 22},
-		{"C", 30},
-		{"D", 30},
-		{"A", 25},
+func BenchmarkDifferentFieldTypes(b *testing.B) {
+	size := 10000
+	users := generateTestData(size)
 
-		{"E", 55},
+	tests := []struct {
+		name      string
+		orderBy   string
+		orderList []any
+	}{
+		{"StringField", "Role", []any{"admin", "editor", "viewer", "guest"}},
+		{"IntField", "ID", []any{5, 3, 1, 2, 4}},
+		{"FloatField", "Score", []any{50.5, 30.5, 10.5, 20.5, 40.5}},
 	}
-	// 自定义排序顺序
-	customOrder := []any{"C", "B"}
-	err := SliceOrderBy(&users, "Name", customOrder)
-	if err != nil {
-		fmt.Println("Error:", err)
-	} else {
-		fmt.Println(users)
+
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			b.Run("V1", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					usersCopy := deepcopy.Copy(users).([]User)
+					_ = SliceOrderBy(&usersCopy, tt.orderBy, tt.orderList)
+				}
+			})
+			b.Run("V2", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					usersCopy := deepcopy.Copy(users).([]User)
+					_ = SliceOrderByV2(&usersCopy, tt.orderBy, tt.orderList)
+				}
+			})
+		})
 	}
 }
