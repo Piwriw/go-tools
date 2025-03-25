@@ -105,7 +105,7 @@ func SliceOrderByV2(rows any, orderBy string, orderList []any) error {
 	if !ok {
 		return fmt.Errorf("field '%s' not found", orderBy)
 	}
-	fieldOffset := field.Offset // 直接使用字段的偏移量
+	fieldOffset := field.Offset // 获取字段的内存偏移量
 
 	// **提前解析 orderList 类型**
 	orderMap := make(map[any]int, len(orderList))
@@ -113,24 +113,23 @@ func SliceOrderByV2(rows any, orderBy string, orderList []any) error {
 		orderMap[v] = i
 	}
 
-	// 获取切片底层数据指针，避免反射带来的性能损耗
-	sliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(slice.UnsafeAddr()))
-	basePtr := unsafe.Pointer(sliceHeader.Data)
+	// 获取切片数据指针
+	dataPtr := unsafe.Pointer(slice.UnsafePointer())
 
 	// 排序
 	sort.SliceStable(slice.Interface(), func(i, j int) bool {
-		// 计算第 i 和 j 个元素的内存地址
-		ptrI := unsafe.Pointer(uintptr(basePtr) + uintptr(i)*uintptr(elemType.Size()))
-		ptrJ := unsafe.Pointer(uintptr(basePtr) + uintptr(j)*uintptr(elemType.Size()))
+		// 计算第 i、j 个元素的地址
+		ptrI := unsafe.Pointer(uintptr(dataPtr) + uintptr(i)*uintptr(elemType.Size()))
+		ptrJ := unsafe.Pointer(uintptr(dataPtr) + uintptr(j)*uintptr(elemType.Size()))
 
-		// 通过偏移量获取字段值
+		// 计算字段地址
 		fieldPtrI := unsafe.Pointer(uintptr(ptrI) + fieldOffset)
 		fieldPtrJ := unsafe.Pointer(uintptr(ptrJ) + fieldOffset)
 
-		// 获取字段的实际值（支持 string、int、float64）
+		// 提取字段值
 		vi, vj := extractValue(field.Type, fieldPtrI, fieldPtrJ)
 
-		// 直接从 orderMap 取值，减少 map 查询次数
+		// 直接从 orderMap 取值
 		iOrder, iExists := orderMap[vi]
 		jOrder, jExists := orderMap[vj]
 
