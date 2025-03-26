@@ -80,17 +80,6 @@ func getSlogLoggerLevel(level Level) slog.Level {
 	}
 }
 
-func getOutput(filePath string) *os.File {
-	if filePath == "" {
-		return os.Stdout
-	}
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-	if err != nil {
-		return os.Stdout
-	}
-	return file
-}
-
 func (l *slogLogger) log(level slog.Level, msg string, args ...any) {
 	if !l.logger.Enabled(context.Background(), level) {
 		return

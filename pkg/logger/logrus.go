@@ -1,0 +1,111 @@
+package logger
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path"
+	"runtime"
+
+	"github.com/sirupsen/logrus"
+)
+
+var defaultCallerPrettyfierFunc = func(f *runtime.Frame) (string, string) {
+	// 自定义文件名 + 行号格式
+	filename := path.Base(f.File)
+	return "", fmt.Sprintf("%s:%d", filename, f.Line)
+}
+
+// logrusLogger 实现
+
+type logrusLogger struct {
+	logger *logrus.Logger
+	level  Level
+	fields logrus.Fields
+}
+
+var _ Logger = (*logrusLogger)(nil)
+
+func newLogrusLogger(opts Options) (Logger, error) {
+	logger := logrus.New()
+	if opts.AddSource {
+		logger.SetReportCaller(true)
+	}
+
+	if opts.JSONFormat {
+		logger.SetFormatter(&logrus.JSONFormatter{
+			CallerPrettyfier: defaultCallerPrettyfierFunc,
+			TimestampFormat:  opts.TimeFormat,
+		})
+	} else {
+		logger.SetFormatter(&logrus.TextFormatter{
+			CallerPrettyfier: defaultCallerPrettyfierFunc,
+			TimestampFormat:  opts.TimeFormat,
+		})
+	}
+	logger.SetLevel(getLogrusLoggerLevel(opts.Level))
+	// 设置控制台和文件输出
+	multiWriter := io.MultiWriter(os.Stdout, getOutput(opts.FilePath))
+	logger.SetOutput(multiWriter)
+	return &logrusLogger{
+		logger: logger,
+		level:  opts.Level,
+	}, nil
+}
+
+func getLogrusLoggerLevel(level Level) logrus.Level {
+	switch level {
+	case DebugLevel:
+		return logrus.DebugLevel
+	case InfoLevel:
+		return logrus.InfoLevel
+	case WarnLevel:
+		return logrus.WarnLevel
+	case ErrorLevel:
+		return logrus.ErrorLevel
+	case FatalLevel:
+		return logrus.FatalLevel
+	default:
+		return logrus.InfoLevel
+	}
+}
+
+func (l *logrusLogger) log(level logrus.Level, args ...any) {
+	if l.fields != nil {
+		l.logger.WithFields(l.fields).Print(args...)
+		return
+	}
+	l.logger.Log(level, fmt.Sprint(args...))
+}
+
+func (l *logrusLogger) Debug(args ...any) { l.log(logrus.DebugLevel, args...) }
+func (l *logrusLogger) Debugf(format string, args ...any) {
+	l.log(logrus.DebugLevel, fmt.Sprintf(format, args...))
+}
+func (l *logrusLogger) Info(args ...any) { l.log(logrus.InfoLevel, args...) }
+func (l *logrusLogger) Infof(format string, args ...any) {
+	l.log(logrus.InfoLevel, fmt.Sprintf(format, args...))
+}
+func (l *logrusLogger) Warn(args ...any) {
+	l.log(logrus.WarnLevel, args...)
+}
+func (l *logrusLogger) Warnf(format string, args ...any) {
+	l.log(logrus.WarnLevel, fmt.Sprintf(format, args...))
+}
+func (l *logrusLogger) Error(args ...any) { l.log(logrus.ErrorLevel, args...) }
+func (l *logrusLogger) Errorf(format string, args ...any) {
+	l.log(logrus.ErrorLevel, fmt.Sprintf(format, args...))
+}
+func (l *logrusLogger) Fatal(args ...any) { l.log(logrus.FatalLevel, args...) }
+func (l *logrusLogger) Fatalf(format string, args ...any) {
+	l.log(logrus.FatalLevel, fmt.Sprintf(format, args...))
+}
+func (l *logrusLogger) SetLevel(level Level) { l.logger.SetLevel(logrus.Level(level)) }
+
+func (l *logrusLogger) WithFields(fields map[string]any) Logger {
+	return &logrusLogger{
+		logger: l.logger,
+		level:  l.level,
+		fields: logrus.Fields(fields),
+	}
+}
