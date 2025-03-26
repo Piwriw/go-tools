@@ -29,22 +29,6 @@ var defaultReplaceAttrFunc = func(groups []string, a slog.Attr) slog.Attr {
 }
 
 func newSlogLogger(opts Options) (Logger, error) {
-	var slogLevel slog.Level
-	switch opts.Level {
-	case DebugLevel:
-		slogLevel = slog.LevelDebug
-	case InfoLevel:
-		slogLevel = slog.LevelInfo
-	case WarnLevel:
-		slogLevel = slog.LevelWarn
-	case ErrorLevel:
-		slogLevel = slog.LevelError
-	case FatalLevel:
-		slogLevel = slog.LevelError // slog 没有 Fatal 级别
-	default:
-		slogLevel = slog.LevelInfo
-	}
-
 	if opts.TimeFormat != "" {
 		defaultReplaceAttrFunc = func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey {
@@ -57,7 +41,7 @@ func newSlogLogger(opts Options) (Logger, error) {
 
 	handlerOpts := &slog.HandlerOptions{
 		AddSource:   opts.AddSource,
-		Level:       slogLevel,
+		Level:       getSlogLoggerLevel(opts.Level),
 		ReplaceAttr: defaultReplaceAttrFunc,
 	}
 	// 设置控制台和文件输出
@@ -76,6 +60,24 @@ func newSlogLogger(opts Options) (Logger, error) {
 		level:           opts.Level,
 		replaceAttrFunc: defaultReplaceAttrFunc,
 	}, nil
+}
+
+// getSlogLoggerLevel 将自定义的 Level 转换为 slog.Level
+func getSlogLoggerLevel(level Level) slog.Level {
+	switch level {
+	case DebugLevel:
+		return slog.LevelDebug
+	case InfoLevel:
+		return slog.LevelInfo
+	case WarnLevel:
+		return slog.LevelWarn
+	case ErrorLevel:
+		return slog.LevelError
+	case FatalLevel:
+		return slog.LevelError // slog 没有 Fatal 级别
+	default:
+		return slog.LevelInfo
+	}
 }
 
 func getOutput(filePath string) *os.File {
@@ -155,26 +157,10 @@ func (l *slogLogger) Fatalf(format string, args ...any) {
 }
 
 func (l *slogLogger) SetLevel(level Level) {
-	var slogLevel slog.Level
-	switch level {
-	case DebugLevel:
-		slogLevel = slog.LevelDebug
-	case InfoLevel:
-		slogLevel = slog.LevelInfo
-	case WarnLevel:
-		slogLevel = slog.LevelWarn
-	case ErrorLevel:
-		slogLevel = slog.LevelError
-	case FatalLevel:
-		slogLevel = slog.LevelError
-	default:
-		slogLevel = slog.LevelInfo
-	}
-
 	// 重新创建 Logger 实例以应用新的日志级别
 	handlerOpts := &slog.HandlerOptions{
 		AddSource:   l.addSource,
-		Level:       slogLevel,
+		Level:       getSlogLoggerLevel(level),
 		ReplaceAttr: l.replaceAttrFunc,
 	}
 	newHandler := slog.NewTextHandler(getOutput(l.filePath), handlerOpts)
