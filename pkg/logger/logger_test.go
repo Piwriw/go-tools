@@ -252,8 +252,23 @@ func TestSlogLoggerWithTimeFormat(t *testing.T) {
 	logger.Error("error:", "hello world")
 	logger.Errorf("error:%v", "hello world")
 }
+
 func TestSlogLoggerWithFields(t *testing.T) {
 	logger, err := NewLoggerWithType(SlogLogger, WithTimeFormat(time.Stamp))
+	if err != nil {
+		t.Error(err)
+	}
+	loggerFiled := logger.WithFields(map[string]any{"key": "value"})
+	logger.Info("Info:hello world")
+	logger.Infof("Infof:%v", "hello world")
+	loggerFiled.Warn("warn:", "hello world")
+	loggerFiled.Warnf("warn:%v", "hello world")
+	logger.Error("error:", "hello world")
+	logger.Errorf("error:%v", "hello world")
+}
+
+func TestSlogLoggerWithErrorOutPut(t *testing.T) {
+	logger, err := NewLoggerWithType(SlogLogger, WithErrorOutPut("./loggerout.log"))
 	if err != nil {
 		t.Error(err)
 	}

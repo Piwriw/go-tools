@@ -5,6 +5,20 @@ import (
 	"os"
 )
 
+func getFilePathOutputs(filePaths ...string) io.Writer {
+	if len(filePaths) == 0 {
+		return nil
+	}
+	iowriters := make([]io.Writer, 0, len(filePaths))
+	for _, path := range filePaths {
+		output := getOutput(path)
+		if output != nil && output != io.Discard {
+			iowriters = append(iowriters, output)
+		}
+	}
+	return io.MultiWriter(iowriters...)
+}
+
 func getOutput(filePath string) io.Writer {
 	if filePath == "" {
 		return io.Discard

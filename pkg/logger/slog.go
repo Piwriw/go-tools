@@ -12,6 +12,7 @@ import (
 
 type slogLogger struct {
 	logger          *slog.Logger
+	errorLogger     *slog.Logger
 	filePath        string
 	addSource       bool
 	level           Level
@@ -44,19 +45,28 @@ func newSlogLogger(opts Options) (Logger, error) {
 		Level:       getSlogLoggerLevel(opts.Level),
 		ReplaceAttr: defaultReplaceAttrFunc,
 	}
+	handlerErrorOpts := &slog.HandlerOptions{
+		AddSource:   opts.AddSource,
+		Level:       getSlogLoggerLevel(ErrorLevel),
+		ReplaceAttr: defaultReplaceAttrFunc,
+	}
 	// 设置控制台和文件输出
 	multiWriter := io.MultiWriter(os.Stdout, getOutput(opts.FilePath))
 	var handler slog.Handler
+	var errorHandler slog.Handler
 	if opts.JSONFormat {
 		handler = slog.NewJSONHandler(multiWriter, handlerOpts)
+		errorHandler = slog.NewJSONHandler(getOutput(opts.ErrorOutput), handlerErrorOpts)
 	} else {
 		handler = slog.NewTextHandler(multiWriter, handlerOpts)
+		errorHandler = slog.NewTextHandler(getOutput(opts.ErrorOutput), handlerErrorOpts)
 	}
 
 	return &slogLogger{
 		filePath:        opts.FilePath,
 		addSource:       opts.AddSource,
 		logger:          slog.New(handler),
+		errorLogger:     slog.New(errorHandler),
 		level:           opts.Level,
 		replaceAttrFunc: defaultReplaceAttrFunc,
 	}, nil
@@ -101,6 +111,10 @@ func (l *slogLogger) log(level slog.Level, msg string, args ...any) {
 	}
 
 	_ = l.logger.Handler().Handle(context.Background(), r)
+	// 额外写入 ERROR 级别日志
+	if level >= slog.LevelError {
+		_ = l.errorLogger.Handler().Handle(context.Background(), r)
+	}
 }
 
 func (l *slogLogger) Debug(args ...any) {

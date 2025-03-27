@@ -81,6 +81,8 @@ type Options struct {
 	AddSource  bool
 	// 格式化日志打印时间
 	TimeFormat string
+	// ErrorOutput 错误日志输出
+	ErrorOutput string
 	// 其他配置项...
 }
 
@@ -111,6 +113,12 @@ func WithAddSource() Option {
 func WithTimeFormat(format string) Option {
 	return func(o *Options) {
 		o.TimeFormat = format
+	}
+}
+
+func WithErrorOutPut(path string) Option {
+	return func(o *Options) {
+		o.ErrorOutput = path
 	}
 }
 
