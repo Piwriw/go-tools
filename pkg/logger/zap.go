@@ -35,17 +35,14 @@ func newZapLogger(opts Options) (Logger, error) {
 	cfg := zap.NewProductionConfig()
 	cfg.Level = zapLevel
 	cfg.DisableCaller = !opts.AddSource
-
-	if opts.JSONFormat {
-		cfg.Encoding = "json"
-	} else {
+	// 关闭打印堆栈（error级别，zap默认打印）
+	cfg.DisableStacktrace = true
+	if !opts.JSONFormat {
 		cfg.Encoding = "console"
 	}
 
 	if opts.FilePath != "" {
-		cfg.OutputPaths = []string{opts.FilePath}
-	} else {
-		cfg.OutputPaths = []string{"stdout"}
+		cfg.OutputPaths = []string{opts.FilePath, "stderr"}
 	}
 
 	logger, err := cfg.Build()

@@ -5,6 +5,84 @@ import (
 	"time"
 )
 
+func TestZapLogger(t *testing.T) {
+	logger, err := NewLoggerWithType(ZapLogger)
+	if err != nil {
+		t.Error(err)
+	}
+	logger.Info("Info:hello world")
+	logger.Infof("Infof:%v", "hello world")
+	logger.Warn("warn:", "hello world")
+	logger.Warnf("warn:%v", "hello world")
+	logger.Error("error:", "hello world")
+	logger.Errorf("error:%v", "hello world")
+}
+
+func TestZapLoggerWithLevel(t *testing.T) {
+	logger, err := NewLoggerWithType(ZapLogger, WithLevel(ErrorLevel))
+	if err != nil {
+		t.Error(err)
+	}
+	logger.Info("Info:hello world")
+	logger.Infof("Infof:%v", "hello world")
+	logger.Warn("warn:", "hello world")
+	logger.Warnf("warn:%v", "hello world")
+	logger.Error("error:", "hello world")
+	logger.Errorf("error:%v", "hello world")
+}
+
+func TestZapLoggerWithAddSource(t *testing.T) {
+	logger, err := NewLoggerWithType(ZapLogger, WithAddSource())
+	if err != nil {
+		t.Error(err)
+	}
+	logger.Info("Info:hello world")
+	logger.Infof("Infof:%v", "hello world")
+	logger.Warn("warn:", "hello world")
+	logger.Warnf("warn:%v", "hello world")
+	logger.Error("error:", "hello world")
+	logger.Errorf("error:%v", "hello world")
+}
+
+func TestZapLoggerWithFileOutput(t *testing.T) {
+	logger, err := NewLoggerWithType(ZapLogger, WithFileOutput("./zap.log"))
+	if err != nil {
+		t.Error(err)
+	}
+	logger.Info("Info:hello world")
+	logger.Infof("Infof:%v", "hello world")
+	logger.Warn("warn:", "hello world")
+	logger.Warnf("warn:%v", "hello world")
+	logger.Error("error:", "hello world")
+	logger.Errorf("error:%v", "hello world")
+}
+
+func TestZapLoggerWithJSONFormat(t *testing.T) {
+	logger, err := NewLoggerWithType(ZapLogger, WithJSONFormat())
+	if err != nil {
+		t.Error(err)
+	}
+	logger.Info("Info:hello world")
+	logger.Infof("Infof:%v", "hello world")
+	logger.Warn("warn:", "hello world")
+	logger.Warnf("warn:%v", "hello world")
+	logger.Error("error:", "hello world")
+	logger.Errorf("error:%v", "hello world")
+}
+
+func TestZapLoggerWithTimeFormat(t *testing.T) {
+	logger, err := NewLoggerWithType(LogrusLogger, WithTimeFormat(time.DateTime))
+	if err != nil {
+		t.Error(err)
+	}
+	logger.Info("Info:hello world")
+	logger.Infof("Infof:%v", "hello world")
+	logger.Warn("warn:", "hello world")
+	logger.Warnf("warn:%v", "hello world")
+	logger.Error("error:", "hello world")
+	logger.Errorf("error:%v", "hello world")
+}
+
 func TestLogrusLogger(t *testing.T) {
 	logger, err := NewLoggerWithType(LogrusLogger)
 	if err != nil {
@@ -69,6 +147,7 @@ func TestLogrusLoggeWithJSONFormat(t *testing.T) {
 	logger.Error("error:", "hello world")
 	logger.Errorf("error:%v", "hello world")
 }
+
 func TestLogrusLoggrWithTimeFormat(t *testing.T) {
 	logger, err := NewLoggerWithType(LogrusLogger, WithTimeFormat(time.DateTime))
 	if err != nil {

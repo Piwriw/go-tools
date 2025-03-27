@@ -78,8 +78,7 @@ type Options struct {
 	// 以JSON格式输出日志
 	JSONFormat bool
 	FilePath   string
-	// 是否记录源码位置(slog特有)
-	AddSource bool
+	AddSource  bool
 	// 格式化日志打印时间
 	TimeFormat string
 	// 其他配置项...
