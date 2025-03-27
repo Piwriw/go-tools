@@ -23,10 +23,10 @@ const (
 
 // Logger 接口定义
 type Logger interface {
-	Debug(args ...interface{})
+	Debug(args ...any)
 	Debugf(format string, args ...any)
 
-	Info(args ...interface{})
+	Info(args ...any)
 	Infof(format string, args ...any)
 
 	Warn(args ...any)
@@ -35,7 +35,7 @@ type Logger interface {
 	Error(args ...any)
 	Errorf(format string, args ...any)
 
-	Fatal(args ...interface{})
+	Fatal(args ...any)
 	Fatalf(format string, args ...any)
 
 	SetLevel(level Level)
