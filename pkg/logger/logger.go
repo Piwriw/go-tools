@@ -1,6 +1,9 @@
 package logger
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // Level 定义日志级别类型
 type Level int
@@ -74,15 +77,19 @@ type Option func(*Options)
 
 // Options 包含Logger的配置
 type Options struct {
+	// 设置日志级别
 	Level Level
 	// 以JSON格式输出日志
 	JSONFormat bool
-	FilePath   string
-	AddSource  bool
+	// 设置日志文件路径
+	FilePath string
+	// 是否打印日志函数调用信息，默认不打印
+	AddSource bool
 	// 格式化日志打印时间
 	TimeFormat string
 	// ErrorOutput 错误日志输出
 	ErrorOutput string
+	// 日志轮转配置
 	LogRotation *LogRotation
 	// 其他配置项...
 }
@@ -141,6 +148,7 @@ func applyOptions(opts ...Option) Options {
 		Level:      defaultLevel,
 		JSONFormat: defaultJSONFormat,
 		AddSource:  defaultAddSource,
+		TimeFormat: time.DateTime,
 	}
 	for _, opt := range opts {
 		opt(&options)
