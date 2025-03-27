@@ -112,7 +112,7 @@ func (l *slogLogger) log(level slog.Level, msg string, args ...any) {
 
 	_ = l.logger.Handler().Handle(context.Background(), r)
 	// 额外写入 ERROR 级别日志
-	if level >= slog.LevelError {
+	if l.errorLogger != nil && level >= slog.LevelError {
 		_ = l.errorLogger.Handler().Handle(context.Background(), r)
 	}
 }

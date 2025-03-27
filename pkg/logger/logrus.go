@@ -19,17 +19,20 @@ var defaultCallerPrettyfierFunc = func(f *runtime.Frame) (string, string) {
 // logrusLogger 实现
 
 type logrusLogger struct {
-	logger *logrus.Logger
-	level  Level
-	fields logrus.Fields
+	logger      *logrus.Logger
+	errorLogger *logrus.Logger
+	level       Level
+	fields      logrus.Fields
 }
 
 var _ Logger = (*logrusLogger)(nil)
 
 func newLogrusLogger(opts Options) (Logger, error) {
 	logger := logrus.New()
+	errorLogger := logrus.New()
 	if opts.AddSource {
 		logger.SetReportCaller(true)
+		errorLogger.SetReportCaller(true)
 	}
 
 	if opts.JSONFormat {
@@ -37,19 +40,30 @@ func newLogrusLogger(opts Options) (Logger, error) {
 			CallerPrettyfier: defaultCallerPrettyfierFunc,
 			TimestampFormat:  opts.TimeFormat,
 		})
+		errorLogger.Formatter = &logrus.TextFormatter{
+			CallerPrettyfier: defaultCallerPrettyfierFunc,
+			TimestampFormat:  opts.TimeFormat,
+		}
 	} else {
 		logger.SetFormatter(&logrus.TextFormatter{
 			CallerPrettyfier: defaultCallerPrettyfierFunc,
 			TimestampFormat:  opts.TimeFormat,
 		})
+		errorLogger.Formatter = &logrus.TextFormatter{
+			CallerPrettyfier: defaultCallerPrettyfierFunc,
+			TimestampFormat:  opts.TimeFormat,
+		}
 	}
 	logger.SetLevel(getLogrusLoggerLevel(opts.Level))
+	errorLogger.SetLevel(getLogrusLoggerLevel(ErrorLevel))
 	// 设置控制台和文件输出
 	multiWriter := io.MultiWriter(os.Stdout, getOutput(opts.FilePath))
 	logger.SetOutput(multiWriter)
+	errorLogger.SetOutput(getOutput(opts.ErrorOutput))
 	return &logrusLogger{
-		logger: logger,
-		level:  opts.Level,
+		logger:      logger,
+		errorLogger: errorLogger,
+		level:       opts.Level,
 	}, nil
 }
 
@@ -76,6 +90,9 @@ func (l *logrusLogger) log(level logrus.Level, args ...any) {
 		return
 	}
 	l.logger.Log(level, fmt.Sprint(args...))
+	if level >= logrus.ErrorLevel {
+		l.errorLogger.Log(level, fmt.Sprint(args...))
+	}
 }
 
 func (l *logrusLogger) Debug(args ...any) { l.log(logrus.DebugLevel, args...) }

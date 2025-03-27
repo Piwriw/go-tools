@@ -161,7 +161,7 @@ func TestLogrusLoggrWithTimeFormat(t *testing.T) {
 	logger.Errorf("error:%v", "hello world")
 }
 
-func TestLogrusLoggrWithFields(t *testing.T) {
+func TestLogrusLoggerWithFields(t *testing.T) {
 	logger, err := NewLoggerWithType(LogrusLogger)
 	if err != nil {
 		t.Error(err)
@@ -171,6 +171,19 @@ func TestLogrusLoggrWithFields(t *testing.T) {
 	logger.Infof("Infof:%v", "hello world")
 	loggerFiled.Warn("warn:", "hello world")
 	loggerFiled.Warnf("warn:%v", "hello world")
+	logger.Error("error:", "hello world")
+	logger.Errorf("error:%v", "hello world")
+}
+
+func TestLogrusLoggerWithErrorOutPut(t *testing.T) {
+	logger, err := NewLoggerWithType(LogrusLogger, WithErrorOutPut("./loggerout.log"), WithFileOutput("./sss"))
+	if err != nil {
+		t.Error(err)
+	}
+	logger.Info("Info:hello world")
+	logger.Infof("Infof:%v", "hello world")
+	logger.Warn("warn:", "hello world")
+	logger.Warnf("warn:%v", "hello world")
 	logger.Error("error:", "hello world")
 	logger.Errorf("error:%v", "hello world")
 }
