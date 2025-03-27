@@ -91,6 +91,9 @@ type Options struct {
 	ErrorOutput string
 	// 日志轮转配置
 	LogRotation *LogRotation
+
+	ColorEnabled bool
+	ColorScheme  *ColorScheme
 	// 其他配置项...
 }
 
@@ -143,6 +146,13 @@ func WithLogRotation(filePath string, maxSize int, maxBackups int, maxAge int, i
 		}
 	}
 }
+
+func WithColor() Option {
+	return func(o *Options) {
+		o.ColorEnabled = true
+	}
+}
+
 func applyOptions(opts ...Option) Options {
 	options := Options{
 		Level:      defaultLevel,
@@ -152,6 +162,9 @@ func applyOptions(opts ...Option) Options {
 	}
 	for _, opt := range opts {
 		opt(&options)
+	}
+	if options.ColorEnabled && options.ColorScheme == nil {
+		options.ColorScheme = &defaultColorScheme
 	}
 	return options
 }

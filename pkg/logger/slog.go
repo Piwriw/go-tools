@@ -16,6 +16,7 @@ type slogLogger struct {
 	filePath        string
 	addSource       bool
 	level           Level
+	colorScheme     *ColorScheme
 	replaceAttrFunc func(groups []string, a slog.Attr) slog.Attr
 }
 
@@ -52,12 +53,12 @@ func newSlogLogger(opts Options) (Logger, error) {
 
 	handlerOpts := &slog.HandlerOptions{
 		AddSource:   opts.AddSource,
-		Level:       getSlogLoggerLevel(opts.Level),
+		Level:       ToSlogLoggerLevel(opts.Level),
 		ReplaceAttr: defaultReplaceAttrFunc,
 	}
 	handlerErrorOpts := &slog.HandlerOptions{
 		AddSource:   opts.AddSource,
-		Level:       getSlogLoggerLevel(ErrorLevel),
+		Level:       ToSlogLoggerLevel(ErrorLevel),
 		ReplaceAttr: defaultReplaceAttrFunc,
 	}
 	// 设置控制台和文件输出
@@ -73,18 +74,23 @@ func newSlogLogger(opts Options) (Logger, error) {
 		errorHandler = slog.NewTextHandler(getOutput(opts.ErrorOutput), handlerErrorOpts)
 	}
 
-	return &slogLogger{
+	logger := &slogLogger{
 		filePath:        opts.FilePath,
 		addSource:       opts.AddSource,
 		logger:          slog.New(handler),
 		errorLogger:     slog.New(errorHandler),
 		level:           opts.Level,
 		replaceAttrFunc: defaultReplaceAttrFunc,
-	}, nil
+	}
+	// 如果启用颜色，则包装 handler
+	if opts.ColorEnabled {
+		logger.colorScheme = opts.ColorScheme
+	}
+	return logger, nil
 }
 
-// getSlogLoggerLevel 将自定义的 Level 转换为 slog.Level
-func getSlogLoggerLevel(level Level) slog.Level {
+// ToSlogLoggerLevel 将自定义的 Level 转换为 slog.Level
+func ToSlogLoggerLevel(level Level) slog.Level {
 	switch level {
 	case DebugLevel:
 		return slog.LevelDebug
@@ -101,6 +107,20 @@ func getSlogLoggerLevel(level Level) slog.Level {
 	}
 }
 
+// FromSlogLevel 将 slog.Level 转换回自定义的 Level
+func FromSlogLevel(slogLevel slog.Level) Level {
+	switch {
+	case slogLevel < slog.LevelInfo:
+		return DebugLevel
+	case slogLevel < slog.LevelWarn:
+		return InfoLevel
+	case slogLevel < slog.LevelError:
+		return WarnLevel
+	default:
+		return ErrorLevel
+	}
+}
+
 func (l *slogLogger) log(level slog.Level, msg string, args ...any) {
 	if !l.logger.Enabled(context.Background(), level) {
 		return
@@ -108,6 +128,9 @@ func (l *slogLogger) log(level slog.Level, msg string, args ...any) {
 
 	var pcs [1]uintptr
 	runtime.Callers(3, pcs[:]) // 跳过 3 层调用栈
+	if l.colorScheme != nil {
+		msg = Colorize(FromSlogLevel(level), msg, *l.colorScheme)
+	}
 	r := slog.NewRecord(time.Now(), level, msg, pcs[0])
 
 	if len(args) > 0 {
@@ -174,7 +197,7 @@ func (l *slogLogger) SetLevel(level Level) {
 	// 重新创建 Logger 实例以应用新的日志级别
 	handlerOpts := &slog.HandlerOptions{
 		AddSource:   l.addSource,
-		Level:       getSlogLoggerLevel(level),
+		Level:       ToSlogLoggerLevel(level),
 		ReplaceAttr: l.replaceAttrFunc,
 	}
 	newHandler := slog.NewTextHandler(getOutput(l.filePath), handlerOpts)
