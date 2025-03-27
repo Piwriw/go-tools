@@ -1,14 +1,17 @@
 package logger
 
-import "os"
+import (
+	"io"
+	"os"
+)
 
-func getOutput(filePath string) *os.File {
+func getOutput(filePath string) io.Writer {
 	if filePath == "" {
-		return nil
+		return io.Discard
 	}
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
-		return nil
+		return io.Discard
 	}
 	return file
 }
