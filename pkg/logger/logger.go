@@ -116,6 +116,8 @@ func WithTimeFormat(format string) Option {
 	}
 }
 
+// WithErrorOutPut 错误日志输出
+// Zap 默认开启Error日志的堆栈打印，Logrus 默认关闭
 func WithErrorOutPut(path string) Option {
 	return func(o *Options) {
 		o.ErrorOutput = path

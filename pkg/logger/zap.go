@@ -11,51 +11,69 @@ import (
 // zapLogger 实现 Logger 接口
 
 type zapLogger struct {
-	logger *zap.SugaredLogger
-	level  Level
+	logger      *zap.SugaredLogger
+	errorLogger *zap.SugaredLogger
+	level       Level
 }
 
 var _ Logger = (*zapLogger)(nil)
 
 func newZapLogger(opts Options) (Logger, error) {
-	var zapLevel zap.AtomicLevel
-	switch opts.Level {
-	case DebugLevel:
-		zapLevel = zap.NewAtomicLevelAt(zap.DebugLevel)
-	case InfoLevel:
-		zapLevel = zap.NewAtomicLevelAt(zap.InfoLevel)
-	case WarnLevel:
-		zapLevel = zap.NewAtomicLevelAt(zap.WarnLevel)
-	case ErrorLevel, FatalLevel:
-		zapLevel = zap.NewAtomicLevelAt(zap.ErrorLevel)
-	default:
-		zapLevel = zap.NewAtomicLevelAt(zap.InfoLevel)
+	// 构建通用的 zap.Config
+	buildConfig := func(level zap.AtomicLevel, disableCaller bool) zap.Config {
+		cfg := zap.NewProductionConfig()
+		cfg.Level = level
+		cfg.DisableCaller = disableCaller
+		cfg.DisableStacktrace = true // 关闭 error 级别的堆栈打印（zap 默认会打印）
+		if !opts.JSONFormat {
+			cfg.Encoding = "console"
+		}
+		return cfg
 	}
 
-	cfg := zap.NewProductionConfig()
-	cfg.Level = zapLevel
-	cfg.DisableCaller = !opts.AddSource
-	// 关闭打印堆栈（error级别，zap默认打印）
-	cfg.DisableStacktrace = true
-	if !opts.JSONFormat {
-		cfg.Encoding = "console"
-	}
-
+	// 创建主日志配置
+	mainCfg := buildConfig(getZapLevel(opts.Level), !opts.AddSource)
 	if opts.FilePath != "" {
-		cfg.OutputPaths = []string{opts.FilePath, "stderr"}
+		mainCfg.OutputPaths = []string{"stderr", opts.FilePath}
 	}
-
-	logger, err := cfg.Build()
+	// 创建 error 日志配置
+	errorCfg := buildConfig(getZapLevel(ErrorLevel), !opts.AddSource)
+	if opts.FilePath != "" {
+		mainCfg.OutputPaths = []string{opts.FilePath}
+	}
+	if opts.ErrorOutput != "" {
+		errorCfg.OutputPaths = []string{opts.ErrorOutput}
+	}
+	errorCfg.DisableStacktrace = false
+	logger, err := mainCfg.Build()
+	if err != nil {
+		return nil, err
+	}
+	errorLogger, err := errorCfg.Build()
 	if err != nil {
 		return nil, err
 	}
 
 	return &zapLogger{
-		logger: logger.Sugar(),
-		level:  opts.Level,
+		logger:      logger.Sugar(),
+		errorLogger: errorLogger.Sugar(),
+		level:       opts.Level,
 	}, nil
 }
-
+func getZapLevel(level Level) zap.AtomicLevel {
+	switch level {
+	case DebugLevel:
+		return zap.NewAtomicLevelAt(zap.DebugLevel)
+	case InfoLevel:
+		return zap.NewAtomicLevelAt(zap.InfoLevel)
+	case WarnLevel:
+		return zap.NewAtomicLevelAt(zap.WarnLevel)
+	case ErrorLevel, FatalLevel:
+		return zap.NewAtomicLevelAt(zap.ErrorLevel)
+	default:
+		return zap.NewAtomicLevelAt(zap.InfoLevel)
+	}
+}
 func (l *zapLogger) log(level zapcore.Level, msg string, args ...any) {
 	switch level {
 	case zap.DebugLevel:
@@ -66,6 +84,9 @@ func (l *zapLogger) log(level zapcore.Level, msg string, args ...any) {
 		l.logger.Warnw(msg, args...)
 	case zap.ErrorLevel:
 		l.logger.Errorw(msg, args...)
+		if l.errorLogger != nil {
+			l.errorLogger.Errorw(msg, args...)
+		}
 	}
 }
 

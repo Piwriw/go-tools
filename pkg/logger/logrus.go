@@ -90,7 +90,7 @@ func (l *logrusLogger) log(level logrus.Level, args ...any) {
 		return
 	}
 	l.logger.Log(level, fmt.Sprint(args...))
-	if level >= logrus.ErrorLevel {
+	if l.errorLogger != nil && level >= logrus.ErrorLevel {
 		l.errorLogger.Log(level, fmt.Sprint(args...))
 	}
 }
