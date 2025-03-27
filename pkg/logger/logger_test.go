@@ -327,3 +327,19 @@ func TestSlogLoggerWithErrorOutPut(t *testing.T) {
 	logger.Error("error:", "hello world")
 	logger.Errorf("error:%v", "hello world")
 }
+
+func TestSlogLoggerWithLogRotation(t *testing.T) {
+	logger, err := NewLoggerWithType(SlogLogger, WithLogRotation("app.log", 1, 5, 0, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 10000; i++ {
+		logger.Info("Info:hello world")
+		logger.Infof("Infof:%v", "hello world")
+		logger.Warn("warn:", "hello world")
+		logger.Warnf("warn:%v", "hello world")
+		logger.Error("error:", "hello world")
+		logger.Errorf("error:%v", "hello world")
+	}
+
+}

@@ -83,6 +83,7 @@ type Options struct {
 	TimeFormat string
 	// ErrorOutput 错误日志输出
 	ErrorOutput string
+	LogRotation *LogRotation
 	// 其他配置项...
 }
 
@@ -124,6 +125,17 @@ func WithErrorOutPut(path string) Option {
 	}
 }
 
+func WithLogRotation(filePath string, maxSize int, maxBackups int, maxAge int, isCompress bool) Option {
+	return func(o *Options) {
+		o.LogRotation = &LogRotation{
+			FilePath:   filePath,
+			MaxSize:    maxSize,
+			MaxBackups: maxBackups,
+			MaxAge:     maxAge,
+			Compress:   isCompress,
+		}
+	}
+}
 func applyOptions(opts ...Option) Options {
 	options := Options{
 		Level:      defaultLevel,

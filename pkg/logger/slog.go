@@ -30,6 +30,7 @@ var defaultReplaceAttrFunc = func(groups []string, a slog.Attr) slog.Attr {
 }
 
 func newSlogLogger(opts Options) (Logger, error) {
+	var ioWriters []io.Writer
 	if opts.TimeFormat != "" {
 		defaultReplaceAttrFunc = func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey {
@@ -38,6 +39,15 @@ func newSlogLogger(opts Options) (Logger, error) {
 			}
 			return a
 		}
+	}
+	// 设置日志轮转
+	if opts.LogRotation != nil {
+		logRotation := initLogRotation(opts.LogRotation.FilePath,
+			opts.LogRotation.MaxSize,
+			opts.LogRotation.MaxAge,
+			opts.LogRotation.MaxBackups,
+			opts.LogRotation.Compress)
+		ioWriters = append(ioWriters, logRotation.logger)
 	}
 
 	handlerOpts := &slog.HandlerOptions{
@@ -51,7 +61,8 @@ func newSlogLogger(opts Options) (Logger, error) {
 		ReplaceAttr: defaultReplaceAttrFunc,
 	}
 	// 设置控制台和文件输出
-	multiWriter := io.MultiWriter(os.Stdout, getOutput(opts.FilePath))
+	ioWriters = append(ioWriters, os.Stdout, getOutput(opts.FilePath))
+	multiWriter := io.MultiWriter(ioWriters...)
 	var handler slog.Handler
 	var errorHandler slog.Handler
 	if opts.JSONFormat {
