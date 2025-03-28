@@ -46,6 +46,10 @@ func newZapLogger(opts Options) (Logger, error) {
 		errorCfg.OutputPaths = []string{opts.ErrorOutput}
 	}
 	errorCfg.DisableStacktrace = false
+	if opts.TimeFormat != "" {
+		mainCfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(opts.TimeFormat)
+		errorCfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(opts.TimeFormat)
+	}
 	logger, err := mainCfg.Build()
 	if err != nil {
 		return nil, err
