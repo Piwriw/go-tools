@@ -9,10 +9,14 @@ import (
 type Level int
 
 const (
-	defaultLevel      = InfoLevel
-	defaultJSONFormat = false
-	defaultAddSource  = false
+	defaultLevel       = InfoLevel
+	defaultJSONFormat  = false
+	defaultAddSource   = false
+	defaultLogFile     = "./app.log"
+	defaultTimeFormat  = time.DateTime
+	defaultErrorOutput = "./app_error.log"
 )
+
 const (
 	DebugLevel Level = iota
 	InfoLevel
@@ -54,6 +58,18 @@ const (
 // NewLogger 创建一个新的Logger实例，默认使用slog
 func NewLogger(options ...Option) (Logger, error) {
 	return NewLoggerWithType(SlogLogger, options...)
+}
+
+// DefaultLogger 创建一个默认的Logger实例，默认使用slog
+func DefaultLogger() (Logger, error) {
+	opts := applyOptions(
+		WithAddSource(),
+		WithLevel(defaultLevel),
+		WithTimeFormat(defaultTimeFormat),
+		WithFileOutput(defaultLogFile),
+		WithErrorOutPut(defaultErrorOutput),
+	)
+	return newSlogLogger(opts)
 }
 
 // NewLoggerWithType 创建指定类型的Logger实例
