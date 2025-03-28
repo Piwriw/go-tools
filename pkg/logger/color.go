@@ -4,54 +4,74 @@ import (
 	"github.com/fatih/color"
 )
 
-// Color 类型定义（兼容原有代码）
-type Color string
-
-// 保留原有颜色常量定义（可选）
-const (
-	ColorReset  Color = "\033[0m"
-	ColorRed    Color = "\033[31m"
-	ColorGreen  Color = "\033[32m"
-	ColorYellow Color = "\033[33m"
-	ColorBlue   Color = "\033[34m"
-	ColorPurple Color = "\033[35m"
-	ColorCyan   Color = "\033[36m"
-	ColorWhite  Color = "\033[37m"
-	ColorGray   Color = "\033[90m"
+// 预定义颜色（支持 ANSI 和 fatih/color）
+var (
+	ColorReset  = Color{"\033[0m", color.New()}
+	ColorRed    = Color{"\033[31m", color.New(color.FgRed)}
+	ColorGreen  = Color{"\033[32m", color.New(color.FgGreen)}
+	ColorYellow = Color{"\033[33m", color.New(color.FgYellow)}
+	ColorBlue   = Color{"\033[34m", color.New(color.FgBlue)}
+	ColorPurple = Color{"\033[35m", color.New(color.FgMagenta)}
+	ColorCyan   = Color{"\033[36m", color.New(color.FgCyan)}
+	ColorWhite  = Color{"\033[37m", color.New(color.FgWhite)}
 )
 
-// ColorScheme 使用 fatih/color 的颜色属性
+// 默认主题配置
+var (
+	// DefaultANSIColorScheme ANSI 默认主题
+	DefaultANSIColorScheme = &ColorScheme{
+		CodeType: CodeTypeANSI,
+		Debug:    &ColorCyan,
+		Info:     &ColorGreen,
+		Warn:     &ColorYellow,
+		Error:    &ColorRed,
+		Fatal:    &ColorPurple,
+	}
+
+	// DefaultFatihColorScheme Fatih 默认主题
+	DefaultFatihColorScheme = &ColorScheme{
+		CodeType: CodeTypeFATIH,
+		Debug:    &ColorCyan,
+		Info:     &ColorGreen,
+		Warn:     &ColorYellow,
+		Error:    &ColorRed,
+		Fatal:    &ColorPurple,
+	}
+
+	// HighContrastColorScheme 高对比度主题
+	HighContrastColorScheme = &ColorScheme{
+		CodeType: CodeTypeANSI,
+		Debug:    &Color{"\033[36;1m", color.New(color.FgCyan, color.Bold)},
+		Info:     &Color{"\033[32;1m", color.New(color.FgGreen, color.Bold)},
+		Warn:     &Color{"\033[33;1m", color.New(color.FgYellow, color.Bold)},
+		Error:    &Color{"\033[31;1;4m", color.New(color.FgRed, color.Bold, color.Underline)},
+		Fatal:    &Color{"\033[35;1;7m", color.New(color.FgMagenta, color.Bold, color.BgWhite)},
+	}
+)
+
+type CodeType string
+
+const (
+	CodeTypeANSI  CodeType = "ansi"
+	CodeTypeFATIH CodeType = "fatih"
+)
+
+type Color struct {
+	ansi  string
+	color *color.Color
+}
 type ColorScheme struct {
-	Debug *color.Color
-	Info  *color.Color
-	Warn  *color.Color
-	Error *color.Color
-	Fatal *color.Color
-}
-
-// 默认颜色方案
-var defaultColorScheme = ColorScheme{
-	Debug: color.New(color.FgCyan),
-	Info:  color.New(color.FgGreen),
-	Warn:  color.New(color.FgYellow),
-	Error: color.New(color.FgRed),
-	Fatal: color.New(color.FgMagenta),
-}
-
-// 无颜色方案
-var noColorScheme = ColorScheme{
-	Debug: color.New(),
-	Info:  color.New(),
-	Warn:  color.New(),
-	Error: color.New(),
-	Fatal: color.New(),
+	CodeType CodeType
+	Debug    *Color
+	Info     *Color
+	Warn     *Color
+	Error    *Color
+	Fatal    *Color
 }
 
 // Colorize 使用 fatih/color 的实现
 func (col *ColorScheme) Colorize(level Level, msg string) string {
-	var c *color.Color
-	color.NoColor = false
-
+	var c *Color
 	switch level {
 	case DebugLevel:
 		c = col.Debug
@@ -66,6 +86,28 @@ func (col *ColorScheme) Colorize(level Level, msg string) string {
 	default:
 		return msg
 	}
+	// 检查颜色指针是否为nil
+	if c == nil {
+		return msg
+	}
+	switch col.CodeType {
+	case CodeTypeANSI:
+		return c.SprintANSI(msg)
+	case CodeTypeFATIH:
+		return c.Sprint(msg)
+	default:
+		return c.Sprint(msg)
+	}
+}
 
-	return c.Sprint(msg)
+func (c Color) Sprint(msg string) string {
+	color.NoColor = false
+	if color.NoColor {
+		return msg
+	}
+	return c.color.Sprint(msg) // 兼容 fatih/color
+}
+
+func (c Color) SprintANSI(msg string) string {
+	return c.ansi + msg + ColorReset.ansi
 }

@@ -381,3 +381,22 @@ func TestSlogLoggeWithColor(t *testing.T) {
 	logger.Error("error:", "hello world")
 	logger.Errorf("error:%v", "hello world")
 }
+
+func TestSlogLoggeWithColorTheme(t *testing.T) {
+	theme := ColorScheme{
+		CodeType: CodeTypeANSI,
+		Info: &Color{
+			ansi: "\u001B[35m",
+		},
+	}
+	logger, err := NewLoggerWithType(SlogLogger, WithColor(), WithFileOutput("./logger.log"), WithColorScheme(theme))
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger.Info("Info:hello world")
+	logger.Infof("Infof:%v", "hello world")
+	logger.Warn("warn:", "hello world")
+	logger.Warnf("warn:%v", "hello world")
+	logger.Error("error:", "hello world")
+	logger.Errorf("error:%v", "hello world")
+}

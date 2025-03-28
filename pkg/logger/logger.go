@@ -91,9 +91,11 @@ type Options struct {
 	ErrorOutput string
 	// 日志轮转配置
 	LogRotation *LogRotation
-
+	// 设置颜色输出
+	// 开启默认有一个默认的颜色方案，可通过 WithColorScheme 自定义颜色方案
 	ColorEnabled bool
-	ColorScheme  *ColorScheme
+	// 主题颜色方案
+	ColorScheme *ColorScheme
 	// 其他配置项...
 }
 
@@ -160,6 +162,15 @@ func WithColor() Option {
 	}
 }
 
+// WithColorScheme 添加主题颜色方案
+// 自定义颜色方案，默认使用默认颜色方案
+// 注意：颜色输出会影响性能，建议在开发环境中使用
+func WithColorScheme(scheme ColorScheme) Option {
+	return func(o *Options) {
+		o.ColorScheme = &scheme
+	}
+}
+
 func applyOptions(opts ...Option) Options {
 	options := Options{
 		Level:      defaultLevel,
@@ -171,7 +182,7 @@ func applyOptions(opts ...Option) Options {
 		opt(&options)
 	}
 	if options.ColorEnabled && options.ColorScheme == nil {
-		options.ColorScheme = &defaultColorScheme
+		options.ColorScheme = DefaultFatihColorScheme
 	}
 	return options
 }
