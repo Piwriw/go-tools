@@ -121,6 +121,8 @@ func WithAddSource() Option {
 	}
 }
 
+// WithTimeFormat 格式化日志打印时间
+// 默认为 time.DateTime
 func WithTimeFormat(format string) Option {
 	return func(o *Options) {
 		o.TimeFormat = format
@@ -135,6 +137,8 @@ func WithErrorOutPut(path string) Option {
 	}
 }
 
+// WithLogRotation 日志轮转配置
+// 日志轮转配置，默认不开启
 func WithLogRotation(filePath string, maxSize int, maxBackups int, maxAge int, isCompress bool) Option {
 	return func(o *Options) {
 		o.LogRotation = &LogRotation{
@@ -147,6 +151,9 @@ func WithLogRotation(filePath string, maxSize int, maxBackups int, maxAge int, i
 	}
 }
 
+// WithColor 启用颜色输出
+// 启用颜色输出，默认不开启
+// 注意：颜色输出会影响性能，建议在开发环境中使用
 func WithColor() Option {
 	return func(o *Options) {
 		o.ColorEnabled = true

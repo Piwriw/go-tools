@@ -48,21 +48,21 @@ var noColorScheme = ColorScheme{
 }
 
 // Colorize 使用 fatih/color 的实现
-func Colorize(level Level, msg string, scheme ColorScheme) string {
+func (col *ColorScheme) Colorize(level Level, msg string) string {
 	var c *color.Color
 	color.NoColor = false
 
 	switch level {
 	case DebugLevel:
-		c = scheme.Debug
+		c = col.Debug
 	case InfoLevel:
-		c = scheme.Info
+		c = col.Info
 	case WarnLevel:
-		c = scheme.Warn
+		c = col.Warn
 	case ErrorLevel:
-		c = scheme.Error
+		c = col.Error
 	case FatalLevel:
-		c = scheme.Fatal
+		c = col.Fatal
 	default:
 		return msg
 	}

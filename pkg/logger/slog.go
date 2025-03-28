@@ -82,7 +82,7 @@ func newSlogLogger(opts Options) (Logger, error) {
 		level:           opts.Level,
 		replaceAttrFunc: defaultReplaceAttrFunc,
 	}
-	// 如果启用颜色，则包装 handler
+	// 设置颜色输出
 	if opts.ColorEnabled {
 		logger.colorScheme = opts.ColorScheme
 	}
@@ -129,7 +129,7 @@ func (l *slogLogger) log(level slog.Level, msg string, args ...any) {
 	var pcs [1]uintptr
 	runtime.Callers(3, pcs[:]) // 跳过 3 层调用栈
 	if l.colorScheme != nil {
-		msg = Colorize(FromSlogLevel(level), msg, *l.colorScheme)
+		msg = l.colorScheme.Colorize(FromSlogLevel(level), msg)
 	}
 	r := slog.NewRecord(time.Now(), level, msg, pcs[0])
 

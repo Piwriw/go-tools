@@ -14,6 +14,7 @@ type zapLogger struct {
 	logger      *zap.SugaredLogger
 	errorLogger *zap.SugaredLogger
 	level       Level
+	colorScheme *ColorScheme
 }
 
 var _ Logger = (*zapLogger)(nil)
@@ -32,12 +33,12 @@ func newZapLogger(opts Options) (Logger, error) {
 	}
 
 	// 创建主日志配置
-	mainCfg := buildConfig(getZapLevel(opts.Level), !opts.AddSource)
+	mainCfg := buildConfig(ToZapLevel(opts.Level), !opts.AddSource)
 	if opts.FilePath != "" {
 		mainCfg.OutputPaths = []string{"stderr", opts.FilePath}
 	}
 	// 创建 error 日志配置
-	errorCfg := buildConfig(getZapLevel(ErrorLevel), !opts.AddSource)
+	errorCfg := buildConfig(ToZapLevel(ErrorLevel), !opts.AddSource)
 	if opts.FilePath != "" {
 		mainCfg.OutputPaths = []string{opts.FilePath}
 	}
@@ -53,14 +54,19 @@ func newZapLogger(opts Options) (Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return &zapLogger{
+	zapLogger := &zapLogger{
 		logger:      logger.Sugar(),
 		errorLogger: errorLogger.Sugar(),
 		level:       opts.Level,
-	}, nil
+	}
+	// 设置颜色输出
+	if opts.ColorEnabled {
+		zapLogger.colorScheme = opts.ColorScheme
+	}
+	return zapLogger, nil
 }
-func getZapLevel(level Level) zap.AtomicLevel {
+
+func ToZapLevel(level Level) zap.AtomicLevel {
 	switch level {
 	case DebugLevel:
 		return zap.NewAtomicLevelAt(zap.DebugLevel)
@@ -74,7 +80,30 @@ func getZapLevel(level Level) zap.AtomicLevel {
 		return zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
 }
+
+func FromZapLevel(zapLevel zapcore.Level) Level {
+	switch zapLevel {
+	case zapcore.DebugLevel:
+		return DebugLevel
+	case zapcore.InfoLevel:
+		return InfoLevel
+	case zapcore.WarnLevel:
+		return WarnLevel
+	case zapcore.ErrorLevel:
+		return ErrorLevel
+	case zapcore.FatalLevel:
+		return FatalLevel
+	case zapcore.DPanicLevel, zapcore.PanicLevel:
+		return ErrorLevel
+	default:
+		return defaultLevel
+	}
+}
+
 func (l *zapLogger) log(level zapcore.Level, msg string, args ...any) {
+	if l.colorScheme != nil {
+		msg = l.colorScheme.Colorize(FromZapLevel(level), msg)
+	}
 	switch level {
 	case zap.DebugLevel:
 		l.logger.Debugw(msg, args...)

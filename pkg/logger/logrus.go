@@ -23,6 +23,7 @@ type logrusLogger struct {
 	errorLogger *logrus.Logger
 	level       Level
 	fields      logrus.Fields
+	colorScheme *ColorScheme
 }
 
 var _ Logger = (*logrusLogger)(nil)
@@ -54,20 +55,25 @@ func newLogrusLogger(opts Options) (Logger, error) {
 			TimestampFormat:  opts.TimeFormat,
 		}
 	}
-	logger.SetLevel(getLogrusLoggerLevel(opts.Level))
-	errorLogger.SetLevel(getLogrusLoggerLevel(ErrorLevel))
+	logger.SetLevel(ToLogrusLoggerLevel(opts.Level))
+	errorLogger.SetLevel(ToLogrusLoggerLevel(ErrorLevel))
 	// 设置控制台和文件输出
 	multiWriter := io.MultiWriter(os.Stdout, getOutput(opts.FilePath))
 	logger.SetOutput(multiWriter)
 	errorLogger.SetOutput(getOutput(opts.ErrorOutput))
-	return &logrusLogger{
+	logrusLogger := &logrusLogger{
 		logger:      logger,
 		errorLogger: errorLogger,
 		level:       opts.Level,
-	}, nil
+	}
+	// 设置颜色输出
+	if opts.ColorEnabled {
+		logrusLogger.colorScheme = opts.ColorScheme
+	}
+	return logrusLogger, nil
 }
 
-func getLogrusLoggerLevel(level Level) logrus.Level {
+func ToLogrusLoggerLevel(level Level) logrus.Level {
 	switch level {
 	case DebugLevel:
 		return logrus.DebugLevel
@@ -84,14 +90,35 @@ func getLogrusLoggerLevel(level Level) logrus.Level {
 	}
 }
 
+func FromLogrusLoggerLevel(level logrus.Level) Level {
+	switch level {
+	case logrus.DebugLevel:
+		return DebugLevel
+	case logrus.InfoLevel:
+		return InfoLevel
+	case logrus.WarnLevel:
+		return WarnLevel
+	case logrus.ErrorLevel:
+		return ErrorLevel
+	case logrus.FatalLevel:
+		return FatalLevel
+	default:
+		return defaultLevel
+	}
+}
+
 func (l *logrusLogger) log(level logrus.Level, args ...any) {
+	msg := fmt.Sprint(args...)
+	if l.colorScheme != nil {
+		msg = l.colorScheme.Colorize(FromLogrusLoggerLevel(level), msg)
+	}
 	if l.fields != nil {
-		l.logger.WithFields(l.fields).Print(args...)
+		l.logger.WithFields(l.fields).Print(msg)
 		return
 	}
-	l.logger.Log(level, fmt.Sprint(args...))
+	l.logger.Log(level, msg)
 	if l.errorLogger != nil && level >= logrus.ErrorLevel {
-		l.errorLogger.Log(level, fmt.Sprint(args...))
+		l.errorLogger.Log(level, fmt.Sprint(msg))
 	}
 }
 
