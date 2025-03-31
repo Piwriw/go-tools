@@ -1,28 +1,49 @@
 package client
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/go-openapi/strfmt"
-	"github.com/prometheus/alertmanager/api/v2/models"
+	"github.com/prometheus/prometheus/model/rulefmt"
+
+	"github.com/prometheus/common/model"
 )
 
-func TestAddAlerts(t *testing.T) {
-	client := NewClient("10.0.0.195:9003")
-	var (
-		alerts = []*models.PostableAlert{
-			{
-				Annotations: models.LabelSet{
-					"name": "test",
-				},
-				EndsAt:   strfmt.DateTime{},
-				StartsAt: strfmt.DateTime{},
-				Alert:    models.Alert{},
+func TestAddAlertRule(t *testing.T) {
+	// 示例：创建一个高 CPU 使用率的告警规则
+	// cpuRule := CreateAlertingRule(
+	// 	"HighCPUUsage",
+	// 	"node_cpu_usage_seconds_total{mode=\"idle\"} < 10",
+	// 	map[string]string{
+	// 		"severity": "critical",
+	// 	},
+	// 	map[string]string{
+	// 		"summary":     "High CPU usage on {{ $labels.instance }}",
+	// 		"description": "CPU usage is above 90% for more than 5 minutes on {{ $labels.instance }}",
+	// 	},
+	// 	model.Duration(5*time.Minute), // 5 minutes
+	// )
+	var rules []rulefmt.RuleNode
+	for i := range 3 {
+		rules = append(rules, CreateAlertingRule(fmt.Sprintf("HighCPUUsage%d", i),
+			"node_cpu_usage_seconds_total{mode=\"idle\"} < 10",
+			map[string]string{
+				"severity": "critical",
 			},
-		}
-	)
-	client.AddAlerts()
+			map[string]string{
+				"summary":     "High CPU usage on {{ $labels.instance }}",
+				"description": "CPU usage is above 90% for more than 5 minutes on {{ $labels.instance }}",
+			},
+			model.Duration(5*time.Minute)))
+	}
+	// 创建一个规则组
+	ruleGroup := GenerateRuleGroup("node-rules", model.Duration(30*time.Second), rules...)
+	// 创建规则文件
+	if err := AddAlertRule("/Users/joohwan/GolandProjects/go-tools/go-alertmanager/client/xx.yaml", ruleGroup); err != nil {
+		t.Fatal(err)
+	}
+
 }
 
 func TestGetAlertGroups(t *testing.T) {

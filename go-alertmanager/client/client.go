@@ -268,5 +268,5 @@ func (am *AlertManagerClient) ValidateRules() ([]*models.AlertGroup, error) {
 	if am.err != nil {
 		return nil, am.err
 	}
-
+	return nil, nil
 }
