@@ -13,9 +13,10 @@ import (
 // AddAlertRule 向指定路径的规则文件添加新的规则组
 func AddAlertRule(filePath string, newGroup rulefmt.RuleGroup) error {
 	existingRules := &rulefmt.RuleGroups{}
-	// 1. 检查规则文件是否存在
-	if _, err := os.Stat(filePath); os.IsExist(err) {
-		// 2. 读取现有规则文件
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		// 文件不存在，可以选择创建文件或返回错误
+	} else {
+		// 读取并解析现有规则
 		parsedRules, errs := rulefmt.ParseFile(filePath)
 		if len(errs) > 0 {
 			return fmt.Errorf("error parsing rules file: %v", errs)
@@ -98,23 +99,23 @@ func GenerateRuleGroup(name string, interval model.Duration, rules ...rulefmt.Ru
 
 // CreateAlertingRule 创建符合 rulefmt 规范的告警规则节点
 func CreateAlertingRule(
-	alert string,
+	alertName string,
 	expr string,
 	labels map[string]string,
 	annotations map[string]string,
-	duration model.Duration,
+	forDuration model.Duration,
 ) rulefmt.RuleNode {
 	// 必须使用 yaml.Node 包装字符串字段
 	return rulefmt.RuleNode{
 		Alert: yaml.Node{
 			Kind:  yaml.ScalarNode,
-			Value: alert,
+			Value: alertName,
 		},
 		Expr: yaml.Node{
 			Kind:  yaml.ScalarNode,
 			Value: expr,
 		},
-		For:         duration,
+		For:         forDuration,
 		Labels:      labels,
 		Annotations: annotations,
 	}

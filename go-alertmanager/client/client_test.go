@@ -5,9 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/prometheus/model/rulefmt"
-
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/model/rulefmt"
 )
 
 func TestAddAlertRule(t *testing.T) {
@@ -25,22 +24,29 @@ func TestAddAlertRule(t *testing.T) {
 	// 	model.Duration(5*time.Minute), // 5 minutes
 	// )
 	var rules []rulefmt.RuleNode
-	for i := range 3 {
-		rules = append(rules, CreateAlertingRule(fmt.Sprintf("HighCPUUsage%d", i),
-			"node_cpu_usage_seconds_total{mode=\"idle\"} < 10",
+	for i := range 5000 {
+		rules = append(rules, CreateAlertingRule(fmt.Sprintf("TESTJoohwanHPA%d", i),
+			" db_stats_counter{category=\"database.mysql\",instance=\"instance-7\",Variable_name=\"Threads_connected\"}\n      >= 3",
 			map[string]string{
-				"severity": "critical",
+				"alertConfigID": "10058",
+				"category":      "database.mysql",
+				"groupId":       "0",
+				"instance":      "instance-7",
 			},
 			map[string]string{
-				"summary":     "High CPU usage on {{ $labels.instance }}",
-				"description": "CPU usage is above 90% for more than 5 minutes on {{ $labels.instance }}",
+				"description": "'数据库{{ $labels.name }} 连接数已达: {{$value}}'",
+				"name":        "'{{ $labels.name }}'",
+				"suggestion":  "可清理释放部分非活跃连接",
+				"summary":     "'数据库{{ $labels.name }} 连接数已达: {{$value}}'",
+				"value":       "'{{$value}}'",
 			},
-			model.Duration(5*time.Minute)))
+			model.Duration(0*time.Second), // 5 minutes
+		))
 	}
 	// 创建一个规则组
-	ruleGroup := GenerateRuleGroup("node-rules", model.Duration(30*time.Second), rules...)
+	ruleGroup := GenerateRuleGroup("node-rules", 0, rules...)
 	// 创建规则文件
-	if err := AddAlertRule("/Users/joohwan/GolandProjects/go-tools/go-alertmanager/client/xx.yaml", ruleGroup); err != nil {
+	if err := AddAlertRule("/Users/joohwan/GolandProjects/go-tools/go-alertmanager/client/rules.yml", ruleGroup); err != nil {
 		t.Fatal(err)
 	}
 
