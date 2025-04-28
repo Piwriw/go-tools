@@ -3,9 +3,25 @@ package format
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 )
 
+// Float64ToPercentFloat 保留两位小数，返回float64
+func Float64ToPercentFloat(f float64) float64 {
+	res := f * 100
+	return math.Round(res*100) / 100
+}
+
+// ToFloat64 将任意类型转换为 float64
+// 支持的类型包括：float64, float32, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, json.Number, string, bool, nil
+// 对于 string 类型，会尝试将其转换为 float64
+// 对于 bool 类型，true 转换为 1，false 转换为 0
+// 对于 nil，返回 0 和错误
+// 对于其他类型，返回 0 和错误
+// 对于 uint64 类型，如果值超过 float64 能精准表示的最大整数，返回错误
+// 对于 json.Number 类型，会尝试将其转换为 float64
+// 对于其他类型，返回 0 和错误
 func ToFloat64(value interface{}) (float64, error) {
 	switch v := value.(type) {
 	case float64:
