@@ -1,6 +1,9 @@
 package format
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestKBToGB(t *testing.T) {
 	tests := []struct {
@@ -79,6 +82,14 @@ func TestBytesToGB(t *testing.T) {
 }
 
 func TestBytesToMB(t *testing.T) {
+	fmt.Println(BytesToMB(1024 * 1024 * 0.5))
+	fmt.Println(BytesToMB(1024 * 1024 * 2.5))
+	fmt.Println(BytesToMB(1024 * 1024 * 2))
+	fmt.Println(BytesToMB(1024 * 1024 * 2.33333))
+	fmt.Println(BytesToMBExact(1024 * 1024 * 0.5))
+	fmt.Println(BytesToMBExact(1024 * 1024 * 2.5))
+	fmt.Println(BytesToMBExact(1024 * 1024 * 2))
+	fmt.Println(BytesToMBExact(1024 * 1024 * 2.33333))
 	tests := []struct {
 		name     string
 		bytes    float64
