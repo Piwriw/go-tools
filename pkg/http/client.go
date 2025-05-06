@@ -6,10 +6,19 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+var (
+	DefaultClient *Client
+)
+
+func init() {
+	DefaultClient = NewHTTPClient()
+}
 
 const (
 	defaultConnectTimeout = 300 * time.Second
@@ -27,14 +36,56 @@ type Client struct {
 	client      *http.Client
 }
 
-func NewHTTPClient() *Client {
-	return &Client{
+// SetContentType 设置默认的 Content-Type
+func SetContentType(ct ContentType) {
+	DefaultClient.contentType = ct
+}
+
+// SetClient 设置默认的 HTTP 客户端
+func SetClient(client *http.Client) {
+	DefaultClient.client = client
+}
+
+// SetTimeout 设置默认的超时时间
+func SetTimeout(t time.Duration) {
+	DefaultClient.client.Timeout = t
+}
+
+// SetIdleConnTimeout 设置默认的空闲连接超时时间
+func SetIdleConnTimeout(t time.Duration) {
+	if transport, ok := DefaultClient.client.Transport.(*http.Transport); ok {
+		transport.IdleConnTimeout = t
+	}
+}
+
+// SetMaxIdleConns 设置默认的最大空闲连接数
+func SetMaxIdleConns(n int) {
+	if transport, ok := DefaultClient.client.Transport.(*http.Transport); ok {
+		transport.MaxIdleConns = n
+	}
+}
+
+// SetTLSHandshakeTimeout 设置默认的 TLS 握手超时时间
+func SetTLSHandshakeTimeout(t time.Duration) {
+	if transport, ok := DefaultClient.client.Transport.(*http.Transport); ok {
+		transport.TLSHandshakeTimeout = t
+	}
+}
+
+// SetCheckRedirect 设置默认的重定向检查函数
+func SetCheckRedirect(fn func(req *http.Request, via []*http.Request) error) {
+	DefaultClient.client.CheckRedirect = fn
+}
+
+// NewHTTPClient creates a new HTTP client with default options.
+func NewHTTPClient(opts ...Options) *Client {
+	client := &Client{
 		client: &http.Client{
 			Timeout: defaultConnectTimeout,
 			Transport: &http.Transport{
-				Dial: (&net.Dialer{
+				DialContext: (&net.Dialer{
 					Timeout: 300 * time.Second,
-				}).Dial,
+				}).DialContext,
 				DisableKeepAlives:     true,
 				MaxIdleConnsPerHost:   5,
 				MaxIdleConns:          5,
@@ -44,6 +95,153 @@ func NewHTTPClient() *Client {
 				ExpectContinueTimeout: 5 * time.Second,
 			},
 		},
+	}
+
+	for _, opt := range opts {
+		opt(client)
+	}
+	return client
+}
+
+// Options 是一个用于配置 Client 的函数类型
+type Options func(*Client)
+
+// WithConnectTimeout 设置客户端连接超时时间
+func WithConnectTimeout(t time.Duration) Options {
+	return func(c *Client) {
+		c.client.Timeout = t
+	}
+}
+
+// WithTimeOut 设置客户端超时时间
+func WithTimeOut(t time.Duration) Options {
+	return func(c *Client) {
+		c.client.Timeout = t
+	}
+}
+
+// WithIdleConnTimeout 设置空闲连接超时时间
+func WithIdleConnTimeout(t time.Duration) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.IdleConnTimeout = t
+		}
+	}
+}
+
+// WithMaxIdleConns 设置最大空闲连接数
+func WithMaxIdleConns(n int) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.MaxIdleConns = n
+		}
+	}
+}
+
+// WithContentType 设置请求的 Content-Type
+func WithContentType(ct ContentType) Options {
+	return func(c *Client) {
+		c.contentType = ct
+	}
+}
+
+// WithTransport 设置自定义的 HTTP 传输层（Transport）
+func WithTransport(transport http.RoundTripper) Options {
+	return func(c *Client) {
+		c.client.Transport = transport
+	}
+}
+
+// WithCheckRedirect 设置重定向检查函数，用于控制是否允许跳转
+func WithCheckRedirect(fn func(req *http.Request, via []*http.Request) error) Options {
+	return func(c *Client) {
+		c.client.CheckRedirect = fn
+	}
+}
+
+// WithJar 设置 CookieJar，用于自动处理 Cookie
+func WithJar(jar http.CookieJar) Options {
+	return func(c *Client) {
+		c.client.Jar = jar
+	}
+}
+
+// WithTimeout 设置客户端整体请求的超时时间
+func WithTimeout(t time.Duration) Options {
+	return func(c *Client) {
+		c.client.Timeout = t
+	}
+}
+
+// WithTLSHandshakeTimeout 设置 TLS 握手的超时时间（仅在使用 http.Transport 时有效）
+func WithTLSHandshakeTimeout(t time.Duration) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.TLSHandshakeTimeout = t
+		}
+	}
+}
+
+// WithResponseHeaderTimeout 设置服务器响应头的超时时间（仅在使用 http.Transport 时有效）
+func WithResponseHeaderTimeout(t time.Duration) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.ResponseHeaderTimeout = t
+		}
+	}
+}
+
+// WithExpectContinueTimeout 设置 Expect: 100-continue 超时时间（仅在使用 http.Transport 时有效）
+func WithExpectContinueTimeout(t time.Duration) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.ExpectContinueTimeout = t
+		}
+	}
+}
+
+// WithProxy 设置代理服务器（仅在使用 http.Transport 时有效）
+func WithProxy(proxy func(*http.Request) (*url.URL, error)) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.Proxy = proxy
+		}
+	}
+}
+
+// WithDisableKeepAlives 设置是否禁用 HTTP 连接的 Keep-Alive 机制（仅在使用 http.Transport 时有效）
+func WithDisableKeepAlives(disable bool) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.DisableKeepAlives = disable
+		}
+	}
+}
+
+// WithDisableCompression 设置是否禁用 HTTP 压缩（仅在使用 http.Transport 时有效）
+func WithDisableCompression(disable bool) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.DisableCompression = disable
+		}
+	}
+}
+
+// WithMaxIdleConnsPerHost 设置每个主机的最大空闲连接数（仅在使用 http.Transport 时有效）
+func WithMaxIdleConnsPerHost(n int) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.MaxIdleConnsPerHost = n
+		}
+	}
+}
+
+// WithProxyConnectHeader 设置代理服务器的连接请求头（仅在使用 http.Transport 时有效）
+func WithProxyConnectHeader(header http.Header) Options {
+	return func(c *Client) {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.ProxyConnectHeader = header
+		}
 	}
 }
 

@@ -100,7 +100,7 @@ func TestPost(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		post, err := NewHTTPClient().JSON().Post("http://1.94.173.48:9001/v1/write?configid=1", marshal)
+		post, err := NewHTTPClient().JSON().Post("http://10.0.0.194:9001/v1/write?configid=1", marshal)
 		if err != nil {
 			t.Fatal(err)
 		}
