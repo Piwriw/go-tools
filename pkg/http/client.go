@@ -251,7 +251,7 @@ func (h *Client) JSON() *Client {
 }
 
 func (h *Client) Post(url string, data []byte) ([]byte, error) {
-	request, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
 	}
@@ -265,6 +265,56 @@ func (h *Client) Post(url string, data []byte) ([]byte, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
+	// 读取响应
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// Get 发送 GET 请求，返回响应体
+func (h *Client) Get(url string) ([]byte, error) {
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if h.contentType == "" {
+		h.contentType = defaultContentType
+	}
+	request.Header.Set("Content-Type", string(h.contentType))
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// Put 发送 PUT 请求，携带 data 作为请求体
+func (h *Client) Put(url string, data []byte) ([]byte, error) {
+	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	if h.contentType == "" {
+		h.contentType = defaultContentType
+	}
+	request.Header.Set("Content-Type", string(h.contentType))
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
 	// 读取响应
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
