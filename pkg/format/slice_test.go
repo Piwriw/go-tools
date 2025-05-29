@@ -30,6 +30,54 @@ func generateTestData(n int) []User {
 	return users
 }
 
+func generateTestPointData(n int) []*User {
+	users := make([]*User, n)
+	roles := []string{"admin", "editor", "viewer", "guest"}
+	for i := 0; i < n; i++ {
+		users[i] = &User{
+			ID:    i + 1,
+			Name:  fmt.Sprintf("User%d", i+1),
+			Role:  roles[i%len(roles)],
+			Score: float64(i%100) + 0.5,
+		}
+	}
+	return users
+}
+
+func TestBasicFunctionality2(t *testing.T) {
+	users := generateTestPointData(5)
+	orderBy := "Role"
+	orderList := []any{"admin", "editor", "viewer", "guest"}
+	for _, user := range users {
+		fmt.Println(user)
+	}
+	fmt.Println("--------")
+	// 测试V1
+	if err := SliceOrderBy(&users, orderBy, orderList); err != nil {
+		t.Errorf("SliceOrderByV1 failed: %v", err)
+	}
+	for _, user := range users {
+		fmt.Println(user)
+	}
+
+}
+
+func TestBasicFunctionality222(t *testing.T) {
+	users := generateTestPointData(5)
+	orderBy := "Role"
+	orderList := []any{"admin", "editor", "viewer", "guest"}
+	for _, user := range users {
+		fmt.Println(user)
+	}
+	fmt.Println("--------")
+	if err := SliceOrderByV2(&users, orderBy, orderList); err != nil {
+		t.Errorf("SliceOrderByV1 failed: %v", err)
+	}
+	for _, user := range users {
+		fmt.Println(user)
+	}
+
+}
 func TestBasicFunctionality(t *testing.T) {
 	users := generateTestData(100)
 	orderBy := "Role"
