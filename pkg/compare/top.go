@@ -5,7 +5,9 @@ import "sort"
 // Sortable 定义一个通用接口，支持排序 + 取元素 + 截取子序列
 type Sortable[T any] interface {
 	sort.Interface
+	// At 获取指定索引的元素
 	At(i int) T
+	// Slice 返回子序列
 	Slice(start, end int) Sortable[T] // 确保返回同样的类型
 }
 
