@@ -1,45 +1,99 @@
-package client
+package prom
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/api"
+	promtheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
-
-	"github.com/prometheus/prometheus/promql/parser"
-
-	"github.com/pkg/errors"
-
-	"github.com/prometheus/prometheus/promql"
-	"github.com/prometheus/prometheus/util/teststorage"
-
-	"github.com/prometheus/client_golang/api"
-	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/promql"
+	"github.com/prometheus/prometheus/promql/parser"
+	"github.com/prometheus/prometheus/util/teststorage"
 )
 
 const defaultFlushDeadline = 1 * time.Minute
 
-// PrometheusClient 封装 Prometheus API 客户端
-type PrometheusClient struct {
-	client v1.API
+var Client *PrometheusClient
+
+func InitPromClient(address string, opts ...Option) error {
+	var err error
+	Client, err = NewPrometheusClient(address, opts...)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-// NewPrometheusClient 初始化 PrometheusClient
-func NewPrometheusClient(address string) (*PrometheusClient, error) {
+// PrometheusClient 封装 Prometheus API 客户端
+type PrometheusClient struct {
+	client     promtheusv1.API
+	httpClient api.Client
+	token      string
+}
+
+func (p *PrometheusClient) Client() promtheusv1.API {
+	return p.client
+}
+
+func (p *PrometheusClient) HTTPClient() api.Client {
+	return p.httpClient
+}
+
+// NewPrometheusClient 初始化 PrometheusClient，支持 Bearer Token 认证
+func NewPrometheusClient(address string, opts ...Option) (*PrometheusClient, error) {
+	pc := &PrometheusClient{}
+	// 应用 Option 参数
+	for _, opt := range opts {
+		opt(pc)
+	}
+
+	// 构建 Transport，根据是否设置 token 决定是否加 Header
+	transport := http.DefaultTransport
+	if pc.token != "" {
+		transport = &authTransport{
+			base:  http.DefaultTransport,
+			token: pc.token,
+		}
+	}
+
+	// 创建 Prometheus 客户端
 	client, err := api.NewClient(api.Config{
-		Address: address,
+		Address:      address,
+		RoundTripper: transport,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return &PrometheusClient{
-		client: v1.NewAPI(client),
-	}, nil
+	pc.client = promtheusv1.NewAPI(client)
+	pc.httpClient = client
+	return pc, nil
+}
+
+type Option func(*PrometheusClient)
+
+func WithToken(token string) Option {
+	return func(pc *PrometheusClient) {
+		pc.token = token
+	}
+}
+
+// authTransport 用于在请求中注入 Bearer Token
+type authTransport struct {
+	base  http.RoundTripper
+	token string
+}
+
+func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("Authorization", "Basic "+t.token)
+	return t.base.RoundTrip(req)
 }
 
 // Query 执行 Prometheus 查询
@@ -73,13 +127,10 @@ func (p *PrometheusClient) QueryRange(ctx context.Context, query string, start, 
 
 // Validate 验证 PromQL 查询是否合法
 func (p *PrometheusClient) Validate(ctx context.Context, querySQL string) error {
-
 	// 创建查询引擎
 	opts := promql.EngineOpts{
-		MaxSamples:    50000000, // 设置查询的最大样本
-		Timeout:       0,        // 超时时间
-		Logger:        nil,      // 可以传递 logger
-		LookbackDelta: 0,
+		MaxSamples: 50000000,             // 设置查询的最大样本
+		Timeout:    defaultFlushDeadline, // 超时时间
 	}
 
 	engine := promql.NewEngine(opts)
@@ -135,42 +186,4 @@ func (p *PrometheusClient) QueryMetric(ctx context.Context, name string) (model.
 		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
 	}
 	return values, nil
-}
-
-// 将 Prometheus 查询结果转换为字段和值的映射
-func (p *PrometheusClient) convertResToFieldMap(query model.Value) ([]map[string]interface{}, error) {
-	var result []map[string]interface{}
-
-	switch v := query.(type) {
-	case model.Vector: // 瞬时向量结果
-		for _, sample := range v {
-			entry := make(map[string]interface{})
-			// 添加标签字段和值
-			for key, value := range sample.Metric {
-				entry[string(key)] = string(value)
-			}
-			// 添加值和时间戳
-			entry["value"] = float64(sample.Value)
-			entry["timestamp"] = sample.Timestamp.Time()
-			result = append(result, entry)
-		}
-	case model.Matrix: // 时间序列结果
-		for _, series := range v {
-			for _, point := range series.Values {
-				entry := make(map[string]interface{})
-				// 添加标签字段和值
-				for key, value := range series.Metric {
-					entry[string(key)] = string(value)
-				}
-				// 添加值和时间戳
-				entry["value"] = float64(point.Value)
-				entry["timestamp"] = point.Timestamp.Time()
-				result = append(result, entry)
-			}
-		}
-	default:
-		return nil, fmt.Errorf("unsupported query result type: %T", query)
-	}
-
-	return result, nil
 }
