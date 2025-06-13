@@ -108,8 +108,7 @@ func (p *PrometheusClient) Query(ctx context.Context, query string, ts time.Time
 	return result, nil
 }
 
-// QueryVector 执行 Prometheus 查询，返回 prommodel.Vector
-// 注意：该方法返回的是 prommodel.Vector 类型，需要自行处理
+// QueryVector 执行 Prometheus 查询并返回 Vector 类型结果
 func (p *PrometheusClient) QueryVector(ctx context.Context, query string, ts time.Time, opts ...promtheusv1.Option) (prommodel.Vector, error) {
 	result, warnings, err := p.client.Query(ctx, query, ts, opts...)
 	if err != nil {
