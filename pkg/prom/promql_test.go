@@ -1,4 +1,4 @@
-package client
+package prom
 
 import (
 	"context"
@@ -100,7 +100,7 @@ func TestQueryRange(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	// 要校验的 PromQL 查询
-	query := "111"
+	query := "123456"
 	client, err := NewPrometheusClient(prometheusUrl)
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +112,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestName(t *testing.T) {
-	expr, err := parser.ParseExpr("db{}")
+	expr, err := parser.ParseExpr("127{}")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,11 +125,12 @@ func TestPrettify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prettify, err := client.Prettify("metric_name{label1=\"value1\", label2=\"value2\", label3=\"value3\", label4=\"value4\"}")
+	prettify, err := client.Prettify("1234567")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(prettify)
+	fmt.Println(fmt.Sprint("1234567"))
 }
 
 func TestPush(t *testing.T) {
