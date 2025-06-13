@@ -12,7 +12,7 @@ import (
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
-	"github.com/prometheus/common/model"
+	prommodel "github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/prometheus/prometheus/util/teststorage"
@@ -97,7 +97,7 @@ func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // Query 执行 Prometheus 查询
-func (p *PrometheusClient) Query(ctx context.Context, query string, ts time.Time) (model.Value, error) {
+func (p *PrometheusClient) Query(ctx context.Context, query string, ts time.Time) (prommodel.Value, error) {
 	result, warnings, err := p.client.Query(ctx, query, ts)
 	if err != nil {
 		return nil, err
@@ -108,14 +108,33 @@ func (p *PrometheusClient) Query(ctx context.Context, query string, ts time.Time
 	return result, nil
 }
 
+// QueryVector 执行 Prometheus 查询，返回 prommodel.Vector
+// 注意：该方法返回的是 prommodel.Vector 类型，需要自行处理
+func (p *PrometheusClient) QueryVector(ctx context.Context, query string, ts time.Time, opts ...promtheusv1.Option) (prommodel.Vector, error) {
+	result, warnings, err := p.client.Query(ctx, query, ts, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if len(warnings) > 0 {
+		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
+	}
+
+	vectors, ok := result.(prommodel.Vector)
+	if !ok {
+		err = errors.New("result is not a vector")
+		return nil, err
+	}
+	return vectors, nil
+}
+
 // QueryRange 执行 Prometheus 时间范围查询
-func (p *PrometheusClient) QueryRange(ctx context.Context, query string, start, end time.Time, step time.Duration) (model.Value, error) {
+func (p *PrometheusClient) QueryRange(ctx context.Context, query string, start, end time.Time, step time.Duration, opts ...promtheusv1.Option) (prommodel.Value, error) {
 	r := v1.Range{
 		Start: start,
 		End:   end,
 		Step:  step,
 	}
-	result, warnings, err := p.client.QueryRange(ctx, query, r)
+	result, warnings, err := p.client.QueryRange(ctx, query, r, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +142,29 @@ func (p *PrometheusClient) QueryRange(ctx context.Context, query string, start, 
 		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
 	}
 	return result, nil
+}
+
+// QueryRangeMatrix 执行 Prometheus 时间范围查询
+// 注意：该方法返回的是 prommodel.Matrix 类型，需要自行处理
+func (p *PrometheusClient) QueryRangeMatrix(ctx context.Context, query string, start, end time.Time, step time.Duration, opts ...promtheusv1.Option) (prommodel.Matrix, error) {
+	r := v1.Range{
+		Start: start,
+		End:   end,
+		Step:  step,
+	}
+	result, warnings, err := p.client.QueryRange(ctx, query, r, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if len(warnings) > 0 {
+		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
+	}
+	matrixVal, ok := result.(prommodel.Matrix)
+	if !ok {
+		err = errors.New("result is not a matrix")
+		return nil, err
+	}
+	return matrixVal, nil
 }
 
 // Validate 验证 PromQL 查询是否合法
@@ -165,7 +207,7 @@ func (p *PrometheusClient) PushGateway(pushGatewayUrl, jobName string, groups ma
 }
 
 // QueryAllMetrics 查询所有指标
-func (p *PrometheusClient) QueryAllMetrics(ctx context.Context) (model.LabelValues, error) {
+func (p *PrometheusClient) QueryAllMetrics(ctx context.Context) (prommodel.LabelValues, error) {
 	values, warnings, err := p.client.LabelValues(ctx, "__name__", nil, time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
@@ -177,7 +219,7 @@ func (p *PrometheusClient) QueryAllMetrics(ctx context.Context) (model.LabelValu
 }
 
 // QueryMetric 查询指定指标
-func (p *PrometheusClient) QueryMetric(ctx context.Context, name string) (model.Value, error) {
+func (p *PrometheusClient) QueryMetric(ctx context.Context, name string) (prommodel.Value, error) {
 	values, warnings, err := p.client.Query(ctx, name, time.Time{})
 	if err != nil {
 		return nil, err

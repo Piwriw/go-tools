@@ -27,6 +27,15 @@ type Data struct {
 	ResultType string
 	Result     []ResultPair
 }
+
+func (r *ResPromQL) Len() (int, error) {
+	resp, err := convertToFieldMap(r.Val)
+	if err != nil {
+		return 0, err
+	}
+	return len(resp.Rows), nil
+}
+
 type ResultPair struct {
 	Metric []prommodel.Metric     `json:"metric"`
 	Values []prommodel.SamplePair `json:"values"`
