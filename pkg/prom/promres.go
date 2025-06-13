@@ -7,6 +7,11 @@ import (
 	prommodel "github.com/prometheus/common/model"
 )
 
+const (
+	PROMVALUEKET          = "__prom_value__"
+	PROMTIMESTAMPVALUEKET = "__prom_timestamp__"
+)
+
 type ResPromQL struct {
 	Val prommodel.Value
 }
@@ -179,7 +184,7 @@ func (r *Row) GetValStr(name string) (string, error) {
 
 // GetValue 获取 Prom Value 值
 func (r *Row) GetValue() (float64, error) {
-	val, ok := (*r)["value"]
+	val, ok := (*r)[PROMVALUEKET]
 	if !ok {
 		return 0, fmt.Errorf("no field value found")
 	}
@@ -208,8 +213,8 @@ func convertToFieldMap(query prommodel.Value) (*Resp, error) {
 				entry[string(key)] = string(value)
 			}
 			// 添加值和时间戳
-			entry["value"] = float64(sample.Value)
-			entry["timestamp"] = sample.Timestamp.Time()
+			entry[PROMVALUEKET] = float64(sample.Value)
+			entry[PROMTIMESTAMPVALUEKET] = sample.Timestamp.Time()
 			result.Rows = append(result.Rows, Row(entry))
 		}
 	case prommodel.ValMatrix: // 时间序列结果
@@ -225,8 +230,8 @@ func convertToFieldMap(query prommodel.Value) (*Resp, error) {
 					entry[string(key)] = string(value)
 				}
 				// 添加值和时间戳
-				entry["value"] = float64(point.Value)
-				entry["timestamp"] = point.Timestamp.Time()
+				entry[PROMVALUEKET] = float64(point.Value)
+				entry[PROMTIMESTAMPVALUEKET] = point.Timestamp.Time()
 				result.Rows = append(result.Rows, Row(entry))
 			}
 		}
