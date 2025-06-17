@@ -18,7 +18,13 @@ import (
 	"github.com/prometheus/prometheus/util/teststorage"
 )
 
-const defaultFlushDeadline = 1 * time.Minute
+const (
+	defaultFlushDeadline = 1 * time.Minute
+)
+
+var (
+	defaultQueryTimeout = 15 * time.Second
+)
 
 var Client *PrometheusClient
 
@@ -36,6 +42,7 @@ type PrometheusClient struct {
 	client     promtheusv1.API
 	httpClient api.Client
 	token      string
+	timeout    time.Duration
 }
 
 func (p *PrometheusClient) Client() promtheusv1.API {
@@ -85,6 +92,17 @@ func WithToken(token string) Option {
 	}
 }
 
+// WithTimeout 设置 Prometheus 查询超时时间
+// 注意：该方法只对 Query 和 QueryRange 方法有效
+func WithTimeout(timeout time.Duration) Option {
+	return func(pc *PrometheusClient) {
+		if timeout <= 0 {
+			return
+		}
+		pc.timeout = timeout
+	}
+}
+
 // authTransport 用于在请求中注入 Bearer Token
 type authTransport struct {
 	base  http.RoundTripper
@@ -98,6 +116,12 @@ func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // Query 执行 Prometheus 查询
 func (p *PrometheusClient) Query(ctx context.Context, query string, ts time.Time) (prommodel.Value, error) {
+	// 如果传入的 ctx 没有超时，才设置默认超时
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultQueryTimeout)
+		defer cancel()
+	}
 	result, warnings, err := p.client.Query(ctx, query, ts)
 	if err != nil {
 		return nil, err
@@ -110,6 +134,12 @@ func (p *PrometheusClient) Query(ctx context.Context, query string, ts time.Time
 
 // QueryVector 执行 Prometheus 查询并返回 Vector 类型结果
 func (p *PrometheusClient) QueryVector(ctx context.Context, query string, ts time.Time, opts ...promtheusv1.Option) (prommodel.Vector, error) {
+	// 如果传入的 ctx 没有超时，才设置默认超时
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultQueryTimeout)
+		defer cancel()
+	}
 	result, warnings, err := p.client.Query(ctx, query, ts, opts...)
 	if err != nil {
 		return nil, err
@@ -128,6 +158,12 @@ func (p *PrometheusClient) QueryVector(ctx context.Context, query string, ts tim
 
 // QueryRange 执行 Prometheus 时间范围查询
 func (p *PrometheusClient) QueryRange(ctx context.Context, query string, start, end time.Time, step time.Duration, opts ...promtheusv1.Option) (prommodel.Value, error) {
+	// 如果传入的 ctx 没有超时，才设置默认超时
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultQueryTimeout)
+		defer cancel()
+	}
 	r := v1.Range{
 		Start: start,
 		End:   end,
@@ -146,6 +182,12 @@ func (p *PrometheusClient) QueryRange(ctx context.Context, query string, start, 
 // QueryRangeMatrix 执行 Prometheus 时间范围查询
 // 注意：该方法返回的是 prommodel.Matrix 类型，需要自行处理
 func (p *PrometheusClient) QueryRangeMatrix(ctx context.Context, query string, start, end time.Time, step time.Duration, opts ...promtheusv1.Option) (prommodel.Matrix, error) {
+	// 如果传入的 ctx 没有超时，才设置默认超时
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultQueryTimeout)
+		defer cancel()
+	}
 	r := v1.Range{
 		Start: start,
 		End:   end,
