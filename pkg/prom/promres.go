@@ -29,8 +29,8 @@ func (r *ResPromQL) Rows() ([]Row, error) {
 }
 
 type Data struct {
-	ResultType string
-	Result     []ResultPair
+	ResultType string       `json:"result_type"`
+	Result     []ResultPair `json:"result"`
 }
 
 func (r *ResPromQL) Len() (int, error) {
