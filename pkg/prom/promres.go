@@ -42,32 +42,57 @@ func (r *ResPromQL) Len() (int, error) {
 }
 
 type ResultPair struct {
-	Metric []prommodel.Metric     `json:"metric"`
+	Metric prommodel.Metric       `json:"metric"`
 	Values []prommodel.SamplePair `json:"values"`
 }
 
-// Data 获取 PromQL WebUI同结构
 func (r *ResPromQL) Data() (*Data, error) {
 	resultType, err := r.ResultType()
 	if err != nil {
 		return nil, err
 	}
-	metric, err := r.Metric()
-	if err != nil {
-		return nil, err
+
+	query := r.Val
+	res := make([]ResultPair, 0)
+	switch query.Type() {
+	case prommodel.ValVector: // 瞬时向量结果
+		vector, ok := query.(prommodel.Vector)
+		if !ok {
+			return nil, errors.New("query is not Vector")
+		}
+		values := make([]prommodel.SamplePair, 0)
+		for _, sample := range vector {
+			values = append(values, prommodel.SamplePair{
+				Timestamp: sample.Timestamp,
+				Value:     sample.Value,
+			})
+			res = append(res, ResultPair{
+				Metric: sample.Metric,
+				Values: values,
+			})
+		}
+
+	case prommodel.ValMatrix: // 时间序列结果
+		matrix, ok := query.(prommodel.Matrix)
+		if !ok {
+			return nil, errors.New("query is not Matrix")
+		}
+		values := make([]prommodel.SamplePair, 0)
+		for _, series := range matrix {
+			values = append(values, series.Values...)
+			res = append(res, ResultPair{
+				Metric: series.Metric,
+				Values: values,
+			})
+		}
+	default:
+		return nil, fmt.Errorf("unsupported query result type: %T", query)
 	}
-	values, err := r.Values()
-	if err != nil {
-		return nil, err
-	}
-	res := &Data{
+	data := &Data{
 		ResultType: resultType,
-		Result: []ResultPair{{
-			Metric: metric,
-			Values: values,
-		}},
+		Result:     res,
 	}
-	return res, nil
+	return data, nil
 }
 
 // ResultType 获取 PromQL 结果的类型
