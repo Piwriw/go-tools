@@ -10,7 +10,6 @@ import (
 	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/prometheus/promql/parser"
 )
 
 var prometheusUrl = "http://10.0.0.163:9002"
@@ -112,11 +111,12 @@ func TestValidate(t *testing.T) {
 }
 
 func TestName(t *testing.T) {
-	expr, err := parser.ParseExpr("127{}")
-	if err != nil {
+	if err := InitPromClient("http://10.0.0.173:9002", WithToken("QWdpbGVYQWRtaW46WVFBZG0xblBAc3MuKg==")); err != nil {
 		t.Fatal(err)
 	}
-	t.Log(expr)
+	if err := DefaultClient.Reload(context.TODO()); err != nil {
+		t.Fatal(err)
+	}
 
 }
 

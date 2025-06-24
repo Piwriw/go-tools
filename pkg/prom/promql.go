@@ -26,11 +26,11 @@ var (
 	defaultQueryTimeout = 15 * time.Second
 )
 
-var Client *PrometheusClient
+var DefaultClient *PrometheusClient
 
 func InitPromClient(address string, opts ...Option) error {
 	var err error
-	Client, err = NewPrometheusClient(address, opts...)
+	DefaultClient, err = NewPrometheusClient(address, opts...)
 	if err != nil {
 		return err
 	}
@@ -39,9 +39,10 @@ func InitPromClient(address string, opts ...Option) error {
 
 // PrometheusClient 封装 Prometheus API 客户端
 type PrometheusClient struct {
+	address    string
+	token      string
 	client     promtheusv1.API
 	httpClient api.Client
-	token      string
 	timeout    time.Duration
 }
 
@@ -55,7 +56,9 @@ func (p *PrometheusClient) HTTPClient() api.Client {
 
 // NewPrometheusClient 初始化 PrometheusClient，支持 Bearer Token 认证
 func NewPrometheusClient(address string, opts ...Option) (*PrometheusClient, error) {
-	pc := &PrometheusClient{}
+	pc := &PrometheusClient{
+		address: address,
+	}
 	// 应用 Option 参数
 	for _, opt := range opts {
 		opt(pc)
@@ -269,4 +272,19 @@ func (p *PrometheusClient) QueryMetric(ctx context.Context, name string) (prommo
 		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
 	}
 	return values, nil
+}
+
+func (p *PrometheusClient) Reload(ctx context.Context) error {
+	request, err := http.NewRequest(http.MethodPost, p.address+"/-/reload", nil)
+	if err != nil {
+		return err
+	}
+	do, bytes, err := p.httpClient.Do(ctx, request)
+	if err != nil {
+		return err
+	}
+	if do.StatusCode != http.StatusOK {
+		return errors.Errorf("Reload failed,err:%s", bytes)
+	}
+	return nil
 }
