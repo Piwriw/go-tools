@@ -283,6 +283,7 @@ func (p *PrometheusClient) Reload(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer do.Body.Close()
 	if do.StatusCode != http.StatusOK {
 		return errors.Errorf("Reload failed,err:%s", bytes)
 	}
