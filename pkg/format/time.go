@@ -5,6 +5,22 @@ import (
 	"time"
 )
 
+// ParseCSTTime 解析一个中国标准时间（CST）格式的时间字符串为 time.Time
+func ParseCSTTime(layout, cstTime string) (time.Time, error) {
+	loc, err := time.LoadLocation("Asia/Shanghai") // 指定 CST（中国标准时间）
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	// 用指定时区解析时间字符串
+	t, err := time.ParseInLocation(layout, cstTime, loc)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return t, nil
+}
+
 // TimeStampDateTime 将时间戳转换为时间格式
 func TimeStampDateTime(timestamp int64) (string, error) {
 	loc, err := time.LoadLocation("Asia/Shanghai")
