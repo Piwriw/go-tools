@@ -135,6 +135,38 @@ func (p *PrometheusClient) Query(ctx context.Context, query string, ts time.Time
 	return result, nil
 }
 
+// QueryResPromQL 执行 Prometheus 查询并返回 ResPromQL 类型结果
+func (p *PrometheusClient) QueryResPromQL(ctx context.Context, query string, ts time.Time) (*ResPromQL, error) {
+	result, warnings, err := p.client.Query(ctx, query, ts)
+	if err != nil {
+		return nil, err
+	}
+	if len(warnings) > 0 {
+		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
+	}
+	return &ResPromQL{result}, nil
+}
+
+// QueryOneValue 执行 Prometheus 获取单个值查询
+// 注意：该方法只对返回单个值的查询有效，如 instant query
+// 对 range query 无效
+func (p *PrometheusClient) QueryOneValue(ctx context.Context, query string, ts time.Time) (prommodel.SampleValue, error) {
+	ql, err := p.QueryResPromQL(ctx, query, ts)
+	if err != nil {
+		return 0, err
+	}
+	values, err := ql.Values()
+	if err != nil {
+		return 0, err
+	}
+	if len(values) == 0 {
+		return 0, nil
+	} else if len(values) > 1 {
+		return 0, errors.New("too many values")
+	}
+	return values[0].Value, nil
+}
+
 // QueryVector 执行 Prometheus 查询并返回 Vector 类型结果
 func (p *PrometheusClient) QueryVector(ctx context.Context, query string, ts time.Time, opts ...promtheusv1.Option) (prommodel.Vector, error) {
 	// 如果传入的 ctx 没有超时，才设置默认超时
