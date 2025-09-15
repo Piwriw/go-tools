@@ -14,6 +14,16 @@ import (
 
 var prometheusUrl = "http://10.0.0.163:9002"
 
+func TestValidateMetricName(t *testing.T) {
+	metricName := "a-1"
+	client, err := NewPrometheusClient(prometheusUrl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid := client.ValidateMetric(metricName)
+	t.Log(valid)
+}
+
 func TestQueryMetric(t *testing.T) {
 	metricName := "ALERTS"
 	client, err := NewPrometheusClient(prometheusUrl)

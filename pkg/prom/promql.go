@@ -306,6 +306,7 @@ func (p *PrometheusClient) QueryMetric(ctx context.Context, name string) (prommo
 	return values, nil
 }
 
+// Reload 重新加载 Prometheus 配置
 func (p *PrometheusClient) Reload(ctx context.Context) error {
 	request, err := http.NewRequest(http.MethodPost, p.address+"/-/reload", nil)
 	if err != nil {
@@ -320,4 +321,11 @@ func (p *PrometheusClient) Reload(ctx context.Context) error {
 		return errors.Errorf("Reload failed,err:%s", bytes)
 	}
 	return nil
+}
+
+// ValidateMetric 验证指标名称和标签是否合法
+// 指标名称必须符合 Prometheus 指标名称规范，标签名称和标签值必须符合 Prometheus 标签规范
+func (p *PrometheusClient) ValidateMetric(name string, labelSet prommodel.LabelSet) bool {
+	labelValue := prommodel.LabelValue(name)
+	return prommodel.IsValidMetricName(labelValue) && labelSet.Validate() == nil
 }
