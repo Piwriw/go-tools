@@ -32,8 +32,9 @@ const (
 )
 
 type Client struct {
-	contentType ContentType
-	client      *http.Client
+	contentType   ContentType
+	authorization string
+	client        *http.Client
 }
 
 // SetContentType 设置默认的 Content-Type
@@ -284,6 +285,51 @@ func (h *Client) Get(url string) ([]byte, error) {
 	}
 	request.Header.Set("Content-Type", string(h.contentType))
 
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// GetWithParams 发送 GET 请求，携带查询参数，返回响应体
+func (h *Client) GetWithParams(baseURL string, params map[string]string) ([]byte, error) {
+	// 解析基础 URL
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// 添加查询参数
+	q := u.Query()
+	for key, value := range params {
+		q.Set(key, value)
+	}
+	u.RawQuery = q.Encode()
+
+	// 创建请求
+	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if h.contentType == "" {
+		h.contentType = defaultContentType
+	}
+	request.Header.Set("Content-Type", string(h.contentType))
+
+	if h.authorization != "" {
+		request.Header.Set("Authorization", h.authorization)
+	}
+
+	// 发送请求
 	res, err := h.client.Do(request)
 	if err != nil {
 		return nil, err
