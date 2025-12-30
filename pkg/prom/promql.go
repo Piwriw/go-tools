@@ -2,11 +2,13 @@ package prom
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/api"
 	promtheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -20,7 +22,12 @@ import (
 
 const (
 	defaultFlushDeadline = 1 * time.Minute
+	// 正则表达式匹配 {{ query "..." }}
+	// 支持 {{ query "expr" | pipeline }} 格式
+	queryPattern = `\{\{\s*query\s+"([^"]+)"[^}]*\}\}`
 )
+
+var queryRe = regexp.MustCompile(queryPattern)
 
 var (
 	defaultQueryTimeout = 15 * time.Second
@@ -258,7 +265,7 @@ func (p *PrometheusClient) Validate(ctx context.Context, querySQL string) error 
 	defer storage.Close()
 	_, err := engine.NewInstantQuery(ctx, storage, nil, querySQL, time.Now())
 	if err != nil {
-		return errors.Wrapf(err, "Valide query is failed")
+		return fmt.Errorf("valide query is failed,err:%w", err)
 	}
 	return nil
 }
@@ -318,14 +325,49 @@ func (p *PrometheusClient) Reload(ctx context.Context) error {
 	}
 	defer do.Body.Close()
 	if do.StatusCode != http.StatusOK {
-		return errors.Errorf("Reload failed,err:%s", bytes)
+		return fmt.Errorf("reload failed,err:%v", bytes)
 	}
 	return nil
 }
 
-// ValidateMetric 验证指标名称和标签是否合法
-// 指标名称必须符合 Prometheus 指标名称规范，标签名称和标签值必须符合 Prometheus 标签规范
+// ValidateMetric 验证指标名称和标签集的有效性
+// 参数:
+//
+//	name: 指标名称
+//	labelSet: 标签集合
+//
+// 返回值:
+//
+//	bool: 验证结果，true表示有效，false表示无效
 func (p *PrometheusClient) ValidateMetric(name string, labelSet prommodel.LabelSet) bool {
 	labelValue := prommodel.LabelValue(name)
+	if !labelValue.IsValid() {
+		return false
+	}
+	for lName, lValue := range labelSet {
+		if !lName.IsValid() {
+			return false
+		}
+		if name == string(lName) {
+			query := extractPromQLQuery(string(lValue))
+			if query != "" {
+				_, err := parser.ParseExpr(query)
+				if err != nil {
+					slog.Warn("PromQL is validate", slog.Any("err", err))
+					return false
+				}
+			}
+		}
+	}
+
 	return prommodel.IsValidMetricName(labelValue) && labelSet.Validate() == nil
+}
+
+// 提取 {{ query "..." }} 中的 PromQL 表达式
+func extractPromQLQuery(input string) string {
+	matches := queryRe.FindStringSubmatch(input)
+	if matches == nil || len(matches) < 2 {
+		return ""
+	}
+	return matches[1]
 }

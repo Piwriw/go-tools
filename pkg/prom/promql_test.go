@@ -7,22 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/common/model"
-
 	"github.com/prometheus/client_golang/prometheus"
+	prommodel "github.com/prometheus/common/model"
 )
 
 var prometheusUrl = "http://10.0.0.163:9002"
-
-func TestValidateMetricName(t *testing.T) {
-	metricName := "a-1"
-	client, err := NewPrometheusClient(prometheusUrl)
-	if err != nil {
-		t.Fatal(err)
-	}
-	valid := client.ValidateMetric(metricName)
-	t.Log(valid)
-}
 
 func TestQueryMetric(t *testing.T) {
 	metricName := "ALERTS"
@@ -66,11 +55,11 @@ func TestQuery(t *testing.T) {
 }
 
 // 将 Prometheus 查询结果转换为字段和值的映射
-func convertQueryResultToFieldValueMap(query model.Value) ([]map[string]interface{}, error) {
+func convertQueryResultToFieldValueMap(query prommodel.Value) ([]map[string]interface{}, error) {
 	var result []map[string]interface{}
 
 	switch v := query.(type) {
-	case model.Vector: // 瞬时向量结果
+	case prommodel.Vector: // 瞬时向量结果
 		for _, sample := range v {
 			entry := make(map[string]interface{})
 			// 添加标签字段和值
@@ -82,7 +71,7 @@ func convertQueryResultToFieldValueMap(query model.Value) ([]map[string]interfac
 			entry["timestamp"] = sample.Timestamp.Time()
 			result = append(result, entry)
 		}
-	case model.Matrix: // 时间序列结果
+	case prommodel.Matrix: // 时间序列结果
 		for _, series := range v {
 			for _, point := range series.Values {
 				entry := make(map[string]interface{})
@@ -183,4 +172,17 @@ func TestPush(t *testing.T) {
 
 		log.Println("Pushed updated metrics to Pushgateway")
 	}
+}
+func TestDeleteMetric(t *testing.T) {
+	client, err := NewPrometheusClient(prometheusUrl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	labelSet := prommodel.LabelSet{
+		"job_name":    "job1",
+		"instance":    "localhost",
+		"description": "{{ query  \"sum by (SQL_ID,name)(count_over_time(db_top_activity{SQL_ID='81825D61AB11B3AC551F93C02E196EC1',instance='instance-9',_VALUE_='SQL_ELAPSED_TIME'}[3m])) or vector(0)\" | first | value  }}",
+	}
+	metric := client.ValidateMetric("description", labelSet)
+	t.Log(metric)
 }
