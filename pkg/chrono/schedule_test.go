@@ -84,6 +84,9 @@ func TestCustomJobMonitor(t *testing.T) {
 		fmt.Println("StartTime", event.GetStartTime().Format("2006-04-02 15-04-05"),
 			"EndTime", event.GetEndTime().Format("2006-04-02 15-04-05"),
 			"Duration", event.GetEndTime().Sub(event.GetStartTime()))
+		if err := scheduler.RemoveJob(event.GetJobID()); err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	job, err := scheduler.AddIntervalJob(intervalJob2)
