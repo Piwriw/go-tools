@@ -43,9 +43,9 @@ func TestDispatcherDispatch(t *testing.T) {
 	d.Add(handler)
 
 	event := &AuditEvent{
-		Timestamp:  time.Now(),
-		Operation:  OperationCreate,
-		Table:      "users",
+		Timestamp: time.Now(),
+		Operation: OperationCreate,
+		Table:     "users",
 	}
 
 	d.Dispatch(context.Background(), event)
@@ -64,9 +64,9 @@ func TestDispatcherDispatchMultiple(t *testing.T) {
 	d.Add(handler2)
 
 	event := &AuditEvent{
-		Timestamp:  time.Now(),
-		Operation:  OperationUpdate,
-		Table:      "users",
+		Timestamp: time.Now(),
+		Operation: OperationUpdate,
+		Table:     "users",
 	}
 
 	d.Dispatch(context.Background(), event)
@@ -80,9 +80,9 @@ func TestDispatcherPanicRecovery(t *testing.T) {
 	d.Add(handler)
 
 	event := &AuditEvent{
-		Timestamp:  time.Now(),
-		Operation:  OperationDelete,
-		Table:      "users",
+		Timestamp: time.Now(),
+		Operation: OperationDelete,
+		Table:     "users",
 	}
 
 	// 不应该 panic

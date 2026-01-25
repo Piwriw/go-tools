@@ -14,20 +14,20 @@ import (
 
 // User 用户模型
 type User struct {
-	ID       uint   `gorm:"primarykey" json:"id"`
-	Name     string `gorm:"size:100" json:"name"`
-	Email    string `gorm:"size:100;uniqueIndex" json:"email"`
-	Age      int    `json:"age"`
-	Country  string `gorm:"size:50" json:"country"`
+	ID      uint   `gorm:"primarykey" json:"id"`
+	Name    string `gorm:"size:100" json:"name"`
+	Email   string `gorm:"size:100;uniqueIndex" json:"email"`
+	Age     int    `json:"age"`
+	Country string `gorm:"size:50" json:"country"`
 	gorm.Model
 }
 
 // Product 产品模型
 type Product struct {
-	ID    uint   `gorm:"primarykey" json:"id"`
-	Name  string `gorm:"size:200" json:"name"`
+	ID    uint    `gorm:"primarykey" json:"id"`
+	Name  string  `gorm:"size:200" json:"name"`
 	Price float64 `json:"price"`
-	Stock int    `json:"stock"`
+	Stock int     `json:"stock"`
 	gorm.Model
 }
 
@@ -56,8 +56,8 @@ func main() {
 
 	// 创建审计插件
 	auditPlugin := audit.New(&audit.Config{
-		Level:         audit.AuditLevelAll, // 记录所有操作
-		IncludeQuery:  true,                // 包含查询操作
+		Level:        audit.AuditLevelAll, // 记录所有操作
+		IncludeQuery: true,                // 包含查询操作
 		ContextKeys: audit.ContextKeyConfig{
 			UserID:    userIDKey,
 			Username:  usernameKey,
