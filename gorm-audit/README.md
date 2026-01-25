@@ -233,6 +233,60 @@ chain.Then(handler2).Then(handler3)
 auditPlugin.Use(chain)
 ```
 
+## Worker Pool
+
+For high-concurrency scenarios, use a worker pool to control resource usage:
+
+```go
+auditPlugin := audit.New(&audit.Config{
+    UseWorkerPool: true,
+    WorkerConfig: &audit.WorkerPoolConfig{
+        WorkerCount: 10,         // Number of worker goroutines
+        QueueSize:   10000,      // Event queue buffer size
+        Timeout:     5000,       // Event processing timeout (ms)
+    },
+})
+```
+
+**Benefits**:
+- Controls goroutine count to prevent resource exhaustion
+- Buffers events in memory during traffic spikes
+- Prevents database connection pool depletion
+
+## Batch Processing
+
+Batch processing can improve performance in high-concurrency scenarios:
+
+```go
+audit.New(&audit.Config{
+    UseWorkerPool: true,
+    WorkerConfig: &audit.WorkerPoolConfig{
+        WorkerCount:   10,
+        QueueSize:     10000,
+        Timeout:       5000,
+        EnableBatch:   true,                 // Enable batch processing
+        BatchSize:     1000,                 // Trigger on 1000 events
+        FlushInterval: 10 * time.Second,     // Trigger on 10 seconds
+    },
+})
+```
+
+**How it works**:
+- Events first enter an in-memory buffer
+- Buffer flushes when reaching 1000 events or after 10 seconds
+- Batched events are processed individually through Handler
+- Single event failure doesn't affect other events
+
+**Use cases**:
+- High-concurrency write scenarios
+- Handler processing overhead is high
+- Millisecond-level latency is acceptable
+
+**Performance improvements**:
+- Reduces Handler call frequency
+- Batch flushing reduces I/O overhead
+- Suitable for log-type Handlers
+
 ## Context Tracking
 
 Pass user information through context:
@@ -581,6 +635,60 @@ chain := handler.NewChainMiddleware(handler1)
 chain.Then(handler2).Then(handler3)
 auditPlugin.Use(chain)
 ```
+
+## 工作池
+
+对于高并发场景，使用工作池来控制资源使用：
+
+```go
+auditPlugin := audit.New(&audit.Config{
+    UseWorkerPool: true,
+    WorkerConfig: &audit.WorkerPoolConfig{
+        WorkerCount: 10,         // Worker goroutine 数量
+        QueueSize:   10000,      // 事件队列缓冲区大小
+        Timeout:     5000,       // 事件处理超时时间（毫秒）
+    },
+})
+```
+
+**优势**：
+- 控制 goroutine 数量，防止资源耗尽
+- 在流量高峰时在内存中缓冲事件
+- 防止数据库连接池耗尽
+
+## 批量处理
+
+批量处理可以提高高并发场景下的性能：
+
+```go
+audit.New(&audit.Config{
+    UseWorkerPool: true,
+    WorkerConfig: &audit.WorkerPoolConfig{
+        WorkerCount:   10,
+        QueueSize:     10000,
+        Timeout:       5000,
+        EnableBatch:   true,                 // 启用批量处理
+        BatchSize:     1000,                 // 1000 条事件触发
+        FlushInterval: 10 * time.Second,     // 10 秒触发
+    },
+})
+```
+
+**工作原理**：
+- 事件先进入内存缓冲区
+- 缓冲区达到 1000 条或超过 10 秒时触发刷新
+- 批量收集后逐个调用 Handler 处理
+- 单个事件失败不影响其他事件
+
+**适用场景**：
+- 高并发写入场景
+- Handler 处理开销较大
+- 可以容忍毫秒级延迟
+
+**性能提升**：
+- 减少 Handler 调用频率
+- 批量刷新可降低 I/O 开销
+- 适合日志类 Handler
 
 ## 上下文跟踪
 
