@@ -85,11 +85,11 @@ func (a *Audit) Use(handler interface{}) *Audit {
 
 // ==================== Callback 占位方法 ====================
 
-func (a *Audit) beforeCreate(db *gorm.DB)  {}
-func (a *Audit) afterCreate(db *gorm.DB)   {}
-func (a *Audit) beforeUpdate(db *gorm.DB)  {}
-func (a *Audit) afterUpdate(db *gorm.DB)   {}
-func (a *Audit) beforeDelete(db *gorm.DB)  {}
-func (a *Audit) afterDelete(db *gorm.DB)   {}
-func (a *Audit) beforeQuery(db *gorm.DB)   {}
-func (a *Audit) afterQuery(db *gorm.DB)    {}
+func (a *Audit) beforeCreate(db *gorm.DB) {}
+func (a *Audit) afterCreate(db *gorm.DB)  {}
+func (a *Audit) beforeUpdate(db *gorm.DB) {}
+func (a *Audit) afterUpdate(db *gorm.DB)  {}
+func (a *Audit) beforeDelete(db *gorm.DB) {}
+func (a *Audit) afterDelete(db *gorm.DB)  {}
+func (a *Audit) beforeQuery(db *gorm.DB)  {}
+func (a *Audit) afterQuery(db *gorm.DB)   {}
