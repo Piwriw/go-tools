@@ -180,6 +180,11 @@ func (a *Audit) processAudit(db *gorm.DB, op Operation) {
 		RequestID:  a.getContextValue(ctx, a.config.ContextKeys.RequestID),
 	}
 
+	// 检查是否应该分发（通过过滤器检查）
+	if !a.shouldDispatch(event) {
+		return
+	}
+
 	// 分发事件
 	a.dispatcher.DispatchHandler(ctx, event)
 }
@@ -323,4 +328,42 @@ func (a *Audit) getContextValue(ctx context.Context, key any) string {
 	}
 
 	return fmt.Sprintf("%v", val)
+}
+
+// shouldDispatch 检查事件是否应该被分发（通过过滤器检查）
+func (a *Audit) shouldDispatch(event *handler.Event) bool {
+	a.configMu.RLock()
+	filters := a.config.Filters
+	a.configMu.RUnlock()
+
+	// 如果没有配置过滤器，默认分发
+	if len(filters) == 0 {
+		return true
+	}
+
+	// 将 handler.Event 转换为 AuditEvent 以供过滤器使用
+	auditEvent := &AuditEvent{
+		Timestamp:  event.GetTimestamp(),
+		Operation:  Operation(event.Operation),
+		Table:      event.Table,
+		PrimaryKey: event.PrimaryKey,
+		OldValues:  event.OldValues,
+		NewValues:  event.NewValues,
+		SQL:        event.SQL,
+		SQLArgs:    event.SQLArgs,
+		UserID:     event.UserID,
+		Username:   event.Username,
+		IP:         event.IP,
+		UserAgent:  event.UserAgent,
+		RequestID:  event.RequestID,
+	}
+
+	// 遍历所有过滤器，任一返回 false 则跳过
+	for _, filter := range filters {
+		if !filter.ShouldAudit(auditEvent) {
+			return false
+		}
+	}
+
+	return true
 }
