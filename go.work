@@ -43,6 +43,7 @@ use (
 	./go-validator
 	./godotenv
 	./gorm-audit
+	./gorm-audit/example
 	./gorm-example
 	./gron
 	./k8s

@@ -17,17 +17,24 @@ const auditContextKey = "audit_context"
 type auditData struct {
 	startTime string
 	oldValues map[string]any
+	skip      bool // 是否跳过审计
 }
 
 // SkipAudit 跳过当前操作的审计
 func SkipAudit(db *gorm.DB) *gorm.DB {
-	return db.InstanceSet(auditContextKey, &auditData{})
+	return db.InstanceSet(auditContextKey, &auditData{skip: true})
 }
 
 // shouldSkip 检查是否应该跳过审计
 func (a *Audit) shouldSkip(db *gorm.DB) bool {
-	_, ok := db.InstanceGet(auditContextKey)
-	return ok
+	val, ok := db.InstanceGet(auditContextKey)
+	if !ok {
+		return false
+	}
+	if auditCtx, ok := val.(*auditData); ok {
+		return auditCtx.skip
+	}
+	return false
 }
 
 // shouldAuditForLevel 检查是否应该审计该操作
@@ -190,6 +197,11 @@ func (a *Audit) extractValues(dest any) map[string]any {
 		v = v.Elem()
 	}
 
+	// 如果是 slice 或 array，返回 nil（Query 操作）
+	if v.Kind() == reflect.Slice || v.Kind() == reflect.Array {
+		return nil
+	}
+
 	if v.Kind() != reflect.Struct {
 		return nil
 	}
@@ -232,6 +244,20 @@ func (a *Audit) extractPrimaryKey(db *gorm.DB) string {
 
 	// 尝试从 Statement.ReflectValue 中获取主键
 	if db.Statement.ReflectValue.IsValid() {
+		// 如果是 slice 或 array，跳过主键提取（Query 操作）
+		if db.Statement.ReflectValue.Kind() == reflect.Slice || db.Statement.ReflectValue.Kind() == reflect.Array {
+			return ""
+		}
+
+		// 检查是否为 nil（仅对 pointer/interface/map/channel/function 有效）
+		if (db.Statement.ReflectValue.Kind() == reflect.Ptr ||
+			db.Statement.ReflectValue.Kind() == reflect.Interface ||
+			db.Statement.ReflectValue.Kind() == reflect.Map ||
+			db.Statement.ReflectValue.Kind() == reflect.Chan ||
+			db.Statement.ReflectValue.Kind() == reflect.Func) && db.Statement.ReflectValue.IsNil() {
+			return ""
+		}
+
 		primaryFields := db.Statement.Schema.PrimaryFields
 		if len(primaryFields) > 0 {
 			var keys []string
