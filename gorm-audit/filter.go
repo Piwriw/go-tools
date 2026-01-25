@@ -196,3 +196,47 @@ func (f *FieldFilter) ShouldAudit(event *AuditEvent) bool {
 
 	return false
 }
+
+// CompositeFilter 组合过滤器
+type CompositeFilter struct {
+	filters []Filter
+	logic   FilterLogic
+}
+
+// NewCompositeFilter 创建组合过滤器
+func NewCompositeFilter(logic FilterLogic, filters ...Filter) *CompositeFilter {
+	return &CompositeFilter{
+		filters: filters,
+		logic:   logic,
+	}
+}
+
+// ShouldAudit 实现过滤逻辑
+func (f *CompositeFilter) ShouldAudit(event *AuditEvent) bool {
+	if len(f.filters) == 0 {
+		return true
+	}
+
+	switch f.logic {
+	case FilterLogicAnd:
+		// 所有过滤器都必须返回 true
+		for _, filter := range f.filters {
+			if !filter.ShouldAudit(event) {
+				return false
+			}
+		}
+		return true
+
+	case FilterLogicOr:
+		// 任一过滤器返回 true 即可
+		for _, filter := range f.filters {
+			if filter.ShouldAudit(event) {
+				return true
+			}
+		}
+		return false
+
+	default:
+		return true
+	}
+}
