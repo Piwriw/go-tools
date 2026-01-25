@@ -105,3 +105,21 @@ func (a *Audit) Use(h handler.EventHandler) *Audit {
 	a.dispatcher.AddHandler(h)
 	return a
 }
+
+// Reload 重新加载配置（从环境变量）
+func (a *Audit) Reload() error {
+	level := getAuditLevelFromEnv()
+
+	a.configMu.Lock()
+	a.config.Level = level
+	a.configMu.Unlock()
+
+	return nil
+}
+
+// GetLevel 线程安全地获取当前审计级别
+func (a *Audit) GetLevel() AuditLevel {
+	a.configMu.RLock()
+	defer a.configMu.RUnlock()
+	return a.config.Level
+}
