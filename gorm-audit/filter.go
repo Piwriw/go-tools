@@ -160,3 +160,39 @@ func (f *UserFilter) ShouldAudit(event *AuditEvent) bool {
 		return true
 	}
 }
+
+// FieldFilter 字段变化过滤器
+type FieldFilter struct {
+	fields map[string]bool // 只有这些字段变化时才审计
+}
+
+// NewFieldFilter 创建字段过滤器
+func NewFieldFilter(fields []string) *FieldFilter {
+	fieldMap := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		fieldMap[field] = true
+	}
+	return &FieldFilter{
+		fields: fieldMap,
+	}
+}
+
+// ShouldAudit 实现过滤逻辑
+func (f *FieldFilter) ShouldAudit(event *AuditEvent) bool {
+	// 如果没有配置字段列表，审计所有
+	if len(f.fields) == 0 {
+		return true
+	}
+
+	// 检查 OldValues 或 NewValues 中是否包含配置的字段
+	for field := range f.fields {
+		if _, exists := event.OldValues[field]; exists {
+			return true
+		}
+		if _, exists := event.NewValues[field]; exists {
+			return true
+		}
+	}
+
+	return false
+}
