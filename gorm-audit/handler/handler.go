@@ -1,6 +1,19 @@
 package handler
 
-import "context"
+import (
+	"context"
+	"time"
+)
+
+// Operation 操作类型
+type Operation string
+
+const (
+	OperationCreate Operation = "CREATE"
+	OperationUpdate Operation = "UPDATE"
+	OperationDelete Operation = "DELETE"
+	OperationQuery  Operation = "QUERY"
+)
 
 // EventHandler 事件处理器接口
 type EventHandler interface {
@@ -14,11 +27,28 @@ func (f EventHandlerFunc) Handle(ctx context.Context, event *Event) error {
 	return f(ctx, event)
 }
 
-// Event 事件定义（避免循环导入，重新定义）
+// Event 审计事件
 type Event struct {
 	Timestamp  string
-	Operation  string
+	Operation  Operation
 	Table      string
 	PrimaryKey string
-	Data       map[string]any
+	OldValues  map[string]any
+	NewValues  map[string]any
+	SQL        string
+	SQLArgs    []any
+	UserID     string
+	Username   string
+	IP         string
+	UserAgent  string
+	RequestID  string
+}
+
+// GetTimestamp 获取格式化的时间戳
+func (e *Event) GetTimestamp() time.Time {
+	t, err := time.Parse("2006-01-02T15:04:05.000", e.Timestamp)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
 }

@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"github.com/piwriw/gorm/gorm-audit/handler"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +16,8 @@ type Config struct {
 
 // Audit GORM 审计插件
 type Audit struct {
-	config *Config
+	config     *Config
+	dispatcher *Dispatcher
 }
 
 // New 创建新的审计插件实例
@@ -30,7 +32,10 @@ func New(config *Config) *Audit {
 	if config.ContextKeys.UserID == nil {
 		config.ContextKeys = DefaultContextKeys()
 	}
-	return &Audit{config: config}
+	return &Audit{
+		config:     config,
+		dispatcher: NewDispatcher(),
+	}
 }
 
 // Name 返回插件名称
@@ -78,18 +83,7 @@ func (a *Audit) Initialize(db *gorm.DB) error {
 }
 
 // Use 添加事件处理器
-func (a *Audit) Use(handler interface{}) *Audit {
-	// 这个方法将在实现 dispatcher 后补充完整
+func (a *Audit) Use(h handler.EventHandler) *Audit {
+	a.dispatcher.AddHandler(h)
 	return a
 }
-
-// ==================== Callback 占位方法 ====================
-
-func (a *Audit) beforeCreate(db *gorm.DB) {}
-func (a *Audit) afterCreate(db *gorm.DB)  {}
-func (a *Audit) beforeUpdate(db *gorm.DB) {}
-func (a *Audit) afterUpdate(db *gorm.DB)  {}
-func (a *Audit) beforeDelete(db *gorm.DB) {}
-func (a *Audit) afterDelete(db *gorm.DB)  {}
-func (a *Audit) beforeQuery(db *gorm.DB)  {}
-func (a *Audit) afterQuery(db *gorm.DB)   {}

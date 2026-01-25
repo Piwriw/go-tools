@@ -6,6 +6,8 @@ import (
 	"log"
 	"runtime"
 	"sync"
+
+	"github.com/piwriw/gorm/gorm-audit/handler"
 )
 
 // EventHandler 事件处理器接口（audit 包内部使用）
@@ -15,58 +17,92 @@ type EventHandler interface {
 
 // Dispatcher 事件分发器
 type Dispatcher struct {
-	handlers []EventHandler
-	mu       sync.RWMutex
+	handlers        []EventHandler
+	handlerHandlers []handler.EventHandler
+	mu              sync.RWMutex
 }
 
 // NewDispatcher 创建新的分发器
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
-		handlers: make([]EventHandler, 0),
+		handlers:        make([]EventHandler, 0),
+		handlerHandlers: make([]handler.EventHandler, 0),
 	}
 }
 
-// Add 添加事件处理器
-func (d *Dispatcher) Add(handler EventHandler) {
+// Add 添加事件处理器（内部接口）
+func (d *Dispatcher) Add(h EventHandler) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.handlers = append(d.handlers, handler)
+	d.handlers = append(d.handlers, h)
 }
 
-// Dispatch 分发事件到所有处理器
+// AddHandler 添加 handler.EventHandler
+func (d *Dispatcher) AddHandler(h handler.EventHandler) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.handlerHandlers = append(d.handlerHandlers, h)
+}
+
+// Dispatch 分发 AuditEvent 到内部处理器
 func (d *Dispatcher) Dispatch(ctx context.Context, event *AuditEvent) {
 	d.mu.RLock()
 	handlers := make([]EventHandler, len(d.handlers))
 	copy(handlers, d.handlers)
 	d.mu.RUnlock()
 
-	for _, handler := range handlers {
-		if handler != nil {
-			go d.safeHandle(ctx, handler, event)
+	for _, h := range handlers {
+		if h != nil {
+			go d.safeHandle(ctx, h, event)
+		}
+	}
+}
+
+// DispatchHandler 分发 handler.Event 到 handler 包的处理器
+func (d *Dispatcher) DispatchHandler(ctx context.Context, event *handler.Event) {
+	d.mu.RLock()
+	handlers := make([]handler.EventHandler, len(d.handlerHandlers))
+	copy(handlers, d.handlerHandlers)
+	d.mu.RUnlock()
+
+	for _, h := range handlers {
+		if h != nil {
+			go d.safeHandleHandler(ctx, h, event)
 		}
 	}
 }
 
 // safeHandle 安全执行事件处理器，带 panic 恢复
-func (d *Dispatcher) safeHandle(ctx context.Context, handler EventHandler, event *AuditEvent) {
+func (d *Dispatcher) safeHandle(ctx context.Context, h EventHandler, event *AuditEvent) {
 	defer func() {
 		if r := recover(); r != nil {
-			d.handlePanic(r, handler, event)
+			d.handlePanic(r, h, event.Table, string(event.Operation))
 		}
 	}()
 
-	_ = handler.Handle(ctx, event)
+	_ = h.Handle(ctx, event)
+}
+
+// safeHandleHandler 安全执行 handler.EventHandler，带 panic 恢复
+func (d *Dispatcher) safeHandleHandler(ctx context.Context, h handler.EventHandler, event *handler.Event) {
+	defer func() {
+		if r := recover(); r != nil {
+			d.handlePanic(r, h, event.Table, string(event.Operation))
+		}
+	}()
+
+	_ = h.Handle(ctx, event)
 }
 
 // handlePanic 处理 panic 情况
-func (d *Dispatcher) handlePanic(r any, handler EventHandler, event *AuditEvent) {
+func (d *Dispatcher) handlePanic(r any, h any, table, operation string) {
 	buf := make([]byte, 4096)
 	n := runtime.Stack(buf, false)
 	stack := string(buf[:n])
 
 	msg := fmt.Sprintf(
 		"[AUDIT] panic recovered: %v, handler: %T, table: %s, operation: %s\nstack: %s",
-		r, handler, event.Table, event.Operation, stack,
+		r, h, table, operation, stack,
 	)
 
 	log.Println(msg)
