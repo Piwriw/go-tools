@@ -65,3 +65,65 @@ func TestAuditInitializeWithQuery(t *testing.T) {
 		t.Errorf("failed to initialize plugin with query: %v", err)
 	}
 }
+
+func TestAuditReload(t *testing.T) {
+	// 设置环境变量
+	t.Setenv("GORM_AUDIT_LEVEL", "all")
+
+	audit := New(&Config{
+		Level: AuditLevelNone,
+	})
+
+	// 初始级别应该是 None
+	if audit.GetLevel() != AuditLevelNone {
+		t.Errorf("expected initial level None, got %v", audit.GetLevel())
+	}
+
+	// 重新加载
+	if err := audit.Reload(); err != nil {
+		t.Fatalf("Reload failed: %v", err)
+	}
+
+	// 级别应该变为 All
+	if audit.GetLevel() != AuditLevelAll {
+		t.Errorf("expected level All after reload, got %v", audit.GetLevel())
+	}
+}
+
+func TestAuditReloadInvalidEnv(t *testing.T) {
+	// 设置无效的环境变量
+	t.Setenv("GORM_AUDIT_LEVEL", "invalid_value")
+
+	audit := New(&Config{
+		Level: AuditLevelAll,
+	})
+
+	// 重新加载应该回退到默认值
+	if err := audit.Reload(); err != nil {
+		t.Fatalf("Reload failed: %v", err)
+	}
+
+	// 应该回退到默认值 changes_only
+	if audit.GetLevel() != AuditLevelChangesOnly {
+		t.Errorf("expected default level, got %v", audit.GetLevel())
+	}
+}
+
+func TestAuditReloadEmptyEnv(t *testing.T) {
+	// 清空环境变量
+	t.Setenv("GORM_AUDIT_LEVEL", "")
+
+	audit := New(&Config{
+		Level: AuditLevelAll,
+	})
+
+	// 重新加载应该回退到默认值
+	if err := audit.Reload(); err != nil {
+		t.Fatalf("Reload failed: %v", err)
+	}
+
+	// 应该回退到默认值 changes_only
+	if audit.GetLevel() != AuditLevelChangesOnly {
+		t.Errorf("expected default level, got %v", audit.GetLevel())
+	}
+}
