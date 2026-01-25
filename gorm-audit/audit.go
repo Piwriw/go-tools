@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"sync"
 
 	"github.com/piwriw/gorm/gorm-audit/handler"
 	"gorm.io/gorm"
@@ -21,6 +22,7 @@ type Config struct {
 type Audit struct {
 	config     *Config
 	dispatcher *Dispatcher
+	configMu   sync.RWMutex // 保护 config 的并发访问
 }
 
 // New 创建新的审计插件实例
