@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -15,8 +16,14 @@ type MockEventHandler struct {
 }
 
 func (m *MockEventHandler) Handle(ctx context.Context, event *AuditEvent) error {
-	// 这里会在 callback.go 实现后更新
-	return nil
+	atomic.AddInt32(&m.CallCount, 1)
+	if m.Delay > 0 {
+		time.Sleep(m.Delay)
+	}
+	if m.Panic {
+		panic("test panic")
+	}
+	return m.Error
 }
 
 func TestDispatcherAdd(t *testing.T) {
