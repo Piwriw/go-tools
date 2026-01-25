@@ -1,6 +1,10 @@
 package audit
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/piwriw/gorm/gorm-audit/types"
+)
 
 // FilterMode 过滤模式
 type FilterMode int
@@ -91,4 +95,31 @@ func (f *TableFilter) matchTable(table string) bool {
 	}
 
 	return false
+}
+
+// OperationFilter 操作类型过滤器
+type OperationFilter struct {
+	operations map[types.Operation]bool
+}
+
+// NewOperationFilter 创建操作类型过滤器（白名单模式）
+func NewOperationFilter(operations []types.Operation) *OperationFilter {
+	opMap := make(map[types.Operation]bool, len(operations))
+	for _, op := range operations {
+		opMap[op] = true
+	}
+	return &OperationFilter{
+		operations: opMap,
+	}
+}
+
+// ShouldAudit 实现过滤逻辑
+func (f *OperationFilter) ShouldAudit(event *AuditEvent) bool {
+	// 如果没有配置操作列表，默认审计所有
+	if len(f.operations) == 0 {
+		return true
+	}
+
+	// 只审计配置的操作类型
+	return f.operations[event.Operation]
 }
