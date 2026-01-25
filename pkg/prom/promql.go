@@ -2,11 +2,13 @@ package prom
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/api"
 	promtheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -20,7 +22,12 @@ import (
 
 const (
 	defaultFlushDeadline = 1 * time.Minute
+	// 正则表达式匹配 {{ query "..." }}
+	// 支持 {{ query "expr" | pipeline }} 格式
+	queryPattern = `\{\{\s*query\s+"([^"]+)"[^}]*\}\}`
 )
+
+var queryRe = regexp.MustCompile(queryPattern)
 
 var (
 	defaultQueryTimeout = 15 * time.Second
@@ -135,6 +142,38 @@ func (p *PrometheusClient) Query(ctx context.Context, query string, ts time.Time
 	return result, nil
 }
 
+// QueryResPromQL 执行 Prometheus 查询并返回 ResPromQL 类型结果
+func (p *PrometheusClient) QueryResPromQL(ctx context.Context, query string, ts time.Time) (*ResPromQL, error) {
+	result, warnings, err := p.client.Query(ctx, query, ts)
+	if err != nil {
+		return nil, err
+	}
+	if len(warnings) > 0 {
+		slog.Warn("PrometheusClient GET Warnings INFO", slog.Any("warnings", warnings))
+	}
+	return &ResPromQL{result}, nil
+}
+
+// QueryOneValue 执行 Prometheus 获取单个值查询
+// 注意：该方法只对返回单个值的查询有效，如 instant query
+// 对 range query 无效
+func (p *PrometheusClient) QueryOneValue(ctx context.Context, query string, ts time.Time) (prommodel.SampleValue, error) {
+	ql, err := p.QueryResPromQL(ctx, query, ts)
+	if err != nil {
+		return 0, err
+	}
+	values, err := ql.Values()
+	if err != nil {
+		return 0, err
+	}
+	if len(values) == 0 {
+		return 0, nil
+	} else if len(values) > 1 {
+		return 0, errors.New("too many values")
+	}
+	return values[0].Value, nil
+}
+
 // QueryVector 执行 Prometheus 查询并返回 Vector 类型结果
 func (p *PrometheusClient) QueryVector(ctx context.Context, query string, ts time.Time, opts ...promtheusv1.Option) (prommodel.Vector, error) {
 	// 如果传入的 ctx 没有超时，才设置默认超时
@@ -226,7 +265,7 @@ func (p *PrometheusClient) Validate(ctx context.Context, querySQL string) error 
 	defer storage.Close()
 	_, err := engine.NewInstantQuery(ctx, storage, nil, querySQL, time.Now())
 	if err != nil {
-		return errors.Wrapf(err, "Valide query is failed")
+		return fmt.Errorf("valide query is failed,err:%w", err)
 	}
 	return nil
 }
@@ -274,6 +313,7 @@ func (p *PrometheusClient) QueryMetric(ctx context.Context, name string) (prommo
 	return values, nil
 }
 
+// Reload 重新加载 Prometheus 配置
 func (p *PrometheusClient) Reload(ctx context.Context) error {
 	request, err := http.NewRequest(http.MethodPost, p.address+"/-/reload", nil)
 	if err != nil {
@@ -285,7 +325,49 @@ func (p *PrometheusClient) Reload(ctx context.Context) error {
 	}
 	defer do.Body.Close()
 	if do.StatusCode != http.StatusOK {
-		return errors.Errorf("Reload failed,err:%s", bytes)
+		return fmt.Errorf("reload failed,err:%v", bytes)
 	}
 	return nil
+}
+
+// ValidateMetric 验证指标名称和标签集的有效性
+// 参数:
+//
+//	name: 指标名称
+//	labelSet: 标签集合
+//
+// 返回值:
+//
+//	bool: 验证结果，true表示有效，false表示无效
+func (p *PrometheusClient) ValidateMetric(name string, labelSet prommodel.LabelSet) bool {
+	labelValue := prommodel.LabelValue(name)
+	if !labelValue.IsValid() {
+		return false
+	}
+	for lName, lValue := range labelSet {
+		if !lName.IsValid() {
+			return false
+		}
+		if name == string(lName) {
+			query := extractPromQLQuery(string(lValue))
+			if query != "" {
+				_, err := parser.ParseExpr(query)
+				if err != nil {
+					slog.Warn("PromQL is validate", slog.Any("err", err))
+					return false
+				}
+			}
+		}
+	}
+
+	return prommodel.IsValidMetricName(labelValue) && labelSet.Validate() == nil
+}
+
+// 提取 {{ query "..." }} 中的 PromQL 表达式
+func extractPromQLQuery(input string) string {
+	matches := queryRe.FindStringSubmatch(input)
+	if matches == nil || len(matches) < 2 {
+		return ""
+	}
+	return matches[1]
 }

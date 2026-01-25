@@ -20,11 +20,11 @@ func ConvertMapKeysToUpper(input map[string]interface{}) map[string]interface{} 
 	return result
 }
 
-func CovertToUpperSingle(str string) string {
+func ConvertToUpperSingle(str string) string {
 	return strings.ToUpper(str)
 }
 
-func CovertToUpperMultiple(strArr ...string) []string {
+func ConvertToUpperMultiple(strArr ...string) []string {
 	for i, s := range strArr {
 		strArr[i] = strings.ToUpper(s)
 	}

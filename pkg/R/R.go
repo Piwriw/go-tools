@@ -1,5 +1,11 @@
 package common
 
+import (
+	"encoding/json"
+	"log/slog"
+	"net/http"
+)
+
 type R struct {
 	Code   int         `json:"code"`
 	Data   interface{} `json:"data"`
@@ -12,6 +18,35 @@ const (
 	CodeSuccess = 200
 	CodeFailed  = 400
 )
+
+// WriteErrorResponse 写入错误响应到HTTP响应中
+// 设置响应头为JSON格式，写入指定的状态码，并将当前对象编码为JSON格式写入响应体。
+// 如果编码过程中发生错误，会记录错误日志。
+//
+// 参数:
+//   - w: http.ResponseWriter 类型，用于写入HTTP响应
+//   - statusCode: int 类型，表示要写入的HTTP状态码
+func (r *R) WriteErrorResponse(w http.ResponseWriter, statusCode int) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(r); err != nil {
+		slog.Error("write error response failed", slog.Any("err", err))
+	}
+}
+
+// WriteSuccessResponse 写入成功的HTTP响应
+// 设置响应头为JSON格式，状态码为200，并将当前对象编码为JSON格式写入响应体。
+// 如果编码过程中发生错误，会记录错误日志。
+//
+// 参数:
+//   - w: http.ResponseWriter 类型，用于写入HTTP响应
+func (r *R) WriteSuccessResponse(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(r); err != nil {
+		slog.Error("write success response failed", slog.Any("err", err))
+	}
+}
 
 // SetData 设置数据
 func (r *R) SetData(data interface{}) *R {
