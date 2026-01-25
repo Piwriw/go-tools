@@ -20,6 +20,8 @@ type Dispatcher struct {
 	handlers        []EventHandler
 	handlerHandlers []handler.EventHandler
 	mu              sync.RWMutex
+	workerPool      *WorkerPool
+	useWorkerPool   bool
 }
 
 // NewDispatcher 创建新的分发器
@@ -27,6 +29,17 @@ func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
 		handlers:        make([]EventHandler, 0),
 		handlerHandlers: make([]handler.EventHandler, 0),
+		useWorkerPool:   false,
+	}
+}
+
+// NewDispatcherWithWorkerPool 创建带 Worker Pool 的分发器
+func NewDispatcherWithWorkerPool(h handler.EventHandler, config *WorkerPoolConfig) *Dispatcher {
+	return &Dispatcher{
+		handlers:        make([]EventHandler, 0),
+		handlerHandlers: make([]handler.EventHandler, 0),
+		workerPool:      NewWorkerPool(h, config),
+		useWorkerPool:   true,
 	}
 }
 
@@ -61,10 +74,19 @@ func (d *Dispatcher) Dispatch(ctx context.Context, event *AuditEvent) {
 // DispatchHandler 分发 handler.Event 到 handler 包的处理器
 func (d *Dispatcher) DispatchHandler(ctx context.Context, event *handler.Event) {
 	d.mu.RLock()
+	useWorkerPool := d.useWorkerPool
+	wp := d.workerPool
 	handlers := make([]handler.EventHandler, len(d.handlerHandlers))
 	copy(handlers, d.handlerHandlers)
 	d.mu.RUnlock()
 
+	// 如果启用了 Worker Pool，直接分发到 Worker Pool
+	if useWorkerPool && wp != nil {
+		wp.Dispatch(event)
+		return
+	}
+
+	// 否则使用 goroutine 分发
 	for _, h := range handlers {
 		if h != nil {
 			go d.safeHandleHandler(ctx, h, event)
@@ -106,4 +128,17 @@ func (d *Dispatcher) handlePanic(r any, h any, table, operation string) {
 	)
 
 	log.Println(msg)
+}
+
+// Close 关闭分发器及 Worker Pool
+func (d *Dispatcher) Close() {
+	d.mu.Lock()
+	wp := d.workerPool
+	d.workerPool = nil
+	d.useWorkerPool = false
+	d.mu.Unlock()
+
+	if wp != nil {
+		wp.Close()
+	}
 }

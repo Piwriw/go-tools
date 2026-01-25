@@ -1,6 +1,8 @@
 package audit
 
 import (
+	"context"
+
 	"github.com/piwriw/gorm/gorm-audit/handler"
 	"gorm.io/gorm"
 )
@@ -32,9 +34,22 @@ func New(config *Config) *Audit {
 	if config.ContextKeys.UserID == nil {
 		config.ContextKeys = DefaultContextKeys()
 	}
+
+	var dispatcher *Dispatcher
+	if config.UseWorkerPool {
+		// Worker Pool 需要一个默认的处理器
+		// 这里暂时使用空实现，用户需要通过 Use 方法添加实际的处理器
+		defaultHandler := handler.EventHandlerFunc(func(ctx context.Context, event *handler.Event) error {
+			return nil
+		})
+		dispatcher = NewDispatcherWithWorkerPool(defaultHandler, config.WorkerConfig)
+	} else {
+		dispatcher = NewDispatcher()
+	}
+
 	return &Audit{
 		config:     config,
-		dispatcher: NewDispatcher(),
+		dispatcher: dispatcher,
 	}
 }
 
