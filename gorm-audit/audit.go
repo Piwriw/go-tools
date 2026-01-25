@@ -14,6 +14,7 @@ type Config struct {
 	ContextKeys   ContextKeyConfig
 	UseWorkerPool bool
 	WorkerConfig  *WorkerPoolConfig
+	Filters       []Filter // 事件过滤器列表
 }
 
 // Audit GORM 审计插件
