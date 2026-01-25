@@ -1,30 +1,21 @@
 package audit
 
-import "time"
+import (
+	"time"
 
-// Operation 定义审计操作类型的枚举
-type Operation string
-
-const (
-	OperationCreate Operation = "create"
-	OperationUpdate Operation = "update"
-	OperationDelete Operation = "delete"
-	OperationQuery  Operation = "query"
+	"github.com/piwriw/gorm/gorm-audit/types"
 )
 
-// String 实现 Stringer 接口
-func (o Operation) String() string {
-	return string(o)
-}
+// Operation 导出共享的操作类型
+type Operation = types.Operation
 
-// IsValid 验证操作类型是否有效
-func (o Operation) IsValid() bool {
-	switch o {
-	case OperationCreate, OperationUpdate, OperationDelete, OperationQuery:
-		return true
-	}
-	return false
-}
+// 导出常量方便使用
+const (
+	OperationCreate = types.OperationCreate
+	OperationUpdate = types.OperationUpdate
+	OperationDelete = types.OperationDelete
+	OperationQuery  = types.OperationQuery
+)
 
 // AuditEvent 审计事件
 type AuditEvent struct {

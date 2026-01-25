@@ -3,16 +3,19 @@ package handler
 import (
 	"context"
 	"time"
+
+	"github.com/piwriw/gorm/gorm-audit/types"
 )
 
-// Operation 操作类型
-type Operation string
+// Operation 导出共享的操作类型
+type Operation = types.Operation
 
+// 导出常量方便使用
 const (
-	OperationCreate Operation = "CREATE"
-	OperationUpdate Operation = "UPDATE"
-	OperationDelete Operation = "DELETE"
-	OperationQuery  Operation = "QUERY"
+	OperationCreate = types.OperationCreate
+	OperationUpdate = types.OperationUpdate
+	OperationDelete = types.OperationDelete
+	OperationQuery  = types.OperationQuery
 )
 
 // EventHandler 事件处理器接口
