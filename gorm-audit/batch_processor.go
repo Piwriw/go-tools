@@ -122,3 +122,28 @@ func (bp *BatchProcessor) safeHandle(event *handler.Event) {
 		bp.stats.mu.Unlock()
 	}
 }
+
+// Dispatch 分发事件到批量处理器
+func (bp *BatchProcessor) Dispatch(event *handler.Event) bool {
+	select {
+	case bp.buffer <- event:
+		return true
+	default:
+		// 缓冲区已满，丢弃事件
+		return false
+	}
+}
+
+// Close 关闭批量处理器
+func (bp *BatchProcessor) Close() {
+	close(bp.done)
+	bp.wg.Wait()
+	close(bp.buffer)
+}
+
+// Stats 获取统计信息
+func (bp *BatchProcessor) Stats() BatchStats {
+	bp.stats.mu.Lock()
+	defer bp.stats.mu.Unlock()
+	return bp.stats
+}
