@@ -1,5 +1,7 @@
 # GORM Audit Plugin
 
+[English](#gorm-audit-plugin) | [中文文档](#gorm-审计插件-中文文档)
+
 A comprehensive audit logging plugin for GORM that tracks all database operations with flexible event handlers and detailed context tracking.
 
 ## Features
@@ -283,7 +285,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
+**[⬆ Back to top](#gorm-audit-plugin)** | **[中文文档 ↓](#gorm-审计插件-中文文档)**
+
 # GORM 审计插件 [中文文档]
+
+[English](#gorm-audit-plugin) | [中文文档](#gorm-审计插件-中文文档)
 
 一个全面的 GORM 审计日志插件，跟踪所有数据库操作，支持灵活的事件处理器和详细的上下文跟踪。
 
@@ -565,3 +571,7 @@ MIT License
 ## 贡献
 
 欢迎贡献！请随时提交 Pull Request。
+
+---
+
+**[English ↑](#gorm-audit-plugin)** | **[⬆ 返回顶部](#gorm-审计插件-中文文档)**
