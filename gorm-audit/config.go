@@ -1,5 +1,7 @@
 package audit
 
+import "time"
+
 // AuditLevel 审计级别
 type AuditLevel int
 
@@ -49,13 +51,21 @@ type WorkerPoolConfig struct {
 	WorkerCount int // worker 数量
 	QueueSize   int // 队列大小
 	Timeout     int // 处理超时（毫秒）
+
+	// 批量处理配置
+	EnableBatch   bool          // 是否启用批量处理
+	BatchSize     int           // 批量大小，默认 1000
+	FlushInterval time.Duration // 刷新间隔，默认 10秒
 }
 
 // DefaultWorkerPoolConfig 返回默认的 worker pool 配置
 func DefaultWorkerPoolConfig() *WorkerPoolConfig {
 	return &WorkerPoolConfig{
-		WorkerCount: 10,
-		QueueSize:   1000,
-		Timeout:     5000, // 5秒
+		WorkerCount:   10,
+		QueueSize:     1000,
+		Timeout:       5000, // 5秒
+		EnableBatch:   false,
+		BatchSize:     1000,
+		FlushInterval: 10 * time.Second,
 	}
 }
