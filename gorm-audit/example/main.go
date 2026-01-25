@@ -55,7 +55,7 @@ func main() {
 		log.Fatalf("Failed to migrate: %v", err)
 	}
 
-	// 创建审计插件 - 演示事件过滤功能
+	// 创建审计插件 - 演示批量处理和事件过滤功能
 	auditPlugin := audit.New(&audit.Config{
 		Level:        audit.AuditLevelAll, // 记录所有操作
 		IncludeQuery: true,                // 包含查询操作
@@ -65,6 +65,16 @@ func main() {
 			IP:        ipKey,
 			UserAgent: userAgentKey,
 			RequestID: requestIDKey,
+		},
+		// 启用 worker pool 和批量处理
+		UseWorkerPool: true,
+		WorkerConfig: &audit.WorkerPoolConfig{
+			WorkerCount:   10,
+			QueueSize:     10000,
+			Timeout:       5000,
+			EnableBatch:   true,                 // 启用批量处理
+			BatchSize:     100,                  // 演示用小批量
+			FlushInterval: 2 * time.Second,      // 2秒刷新间隔
 		},
 		// 添加事件过滤器
 		Filters: []audit.Filter{
@@ -139,11 +149,25 @@ func main() {
 	fmt.Println("\n--- Delete Operations ---")
 	deleteUser(ctx, db, 2)
 
-	// 5. Skip Audit 示例
+	// 5. 批量处理演示
+	fmt.Println("\n--- Batch Processing Demo ---")
+	fmt.Println("Creating 50 users with batch processing enabled...")
+	fmt.Printf("Batch config: Size=%d, FlushInterval=%v\n", 100, 2*time.Second)
+
+	startTime := time.Now()
+	for i := 0; i < 50; i++ {
+		createUser(ctx, db, fmt.Sprintf("BatchUser%d", i),
+			fmt.Sprintf("batchuser%d@example.com", i),
+			20+i, "USA")
+	}
+	elapsed := time.Since(startTime)
+	fmt.Printf("Created 50 users in %v\n", elapsed)
+
+	// 6. Skip Audit 示例
 	fmt.Println("\n--- Skip Audit Example ---")
 	skipAuditUser(ctx, db, "Charlie", "charlie@example.com", 35, "Australia")
 
-	// 6. 配置热更新示例
+	// 7. 配置热更新示例
 	fmt.Println("\n--- Config Reload Example ---")
 	fmt.Printf("Current audit level: %v\n", auditPlugin.GetLevel())
 
@@ -156,14 +180,18 @@ func main() {
 	}
 
 	// 提示如何使用环境变量
-	fmt.Println("\n💡 Tip: You can control audit level via environment variables:")
+	fmt.Println("\nTip: You can control audit level via environment variables:")
 	fmt.Println("   export GORM_AUDIT_LEVEL=all          # Audit all operations")
 	fmt.Println("   export GORM_AUDIT_LEVEL=changes_only # Audit only changes")
 	fmt.Println("   export GORM_AUDIT_LEVEL=none         # Disable auditing")
+	fmt.Println("\nBatch Processing Benefits:")
+	fmt.Println("   - Improved performance for high-volume operations")
+	fmt.Println("   - Reduced database I/O through batched writes")
+	fmt.Println("   - Better resource utilization with worker pools")
 
-	// 等待异步处理器完成
-	fmt.Println("\nWaiting for async handlers to complete...")
-	time.Sleep(500 * time.Millisecond)
+	// 等待批量处理完成
+	fmt.Println("\nWaiting for batch processing to complete...")
+	time.Sleep(3 * time.Second)
 
 	fmt.Println("\n=== Demo Complete ===")
 }
