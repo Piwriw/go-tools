@@ -280,3 +280,288 @@ MIT License
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+# GORM 审计插件 [中文文档]
+
+一个全面的 GORM 审计日志插件，跟踪所有数据库操作，支持灵活的事件处理器和详细的上下文跟踪。
+
+## 特性
+
+- **完整的操作跟踪**: 审计创建、更新、删除和查询操作
+- **灵活的事件处理器**: 支持多个处理器链，包含中间件支持
+- **上下文感知**: 跟踪用户信息、请求 ID、IP 地址等
+- **异步处理**: 非阻塞的审计事件分发
+- **跳过功能**: 可选择性地跳过特定操作的审计
+- **多种输出格式**: 内置控制台处理器，支持彩色/文本/JSON 输出
+- **Panic 恢复**: 安全的处理器，自动恢复 panic
+- **可配置级别**: 审计所有操作、仅变更操作或禁用
+
+## 安装
+
+```bash
+go get github.com/piwriw/gorm/gorm-audit
+```
+
+## 快速开始
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+
+    "github.com/piwriw/gorm/gorm-audit"
+    "github.com/piwriw/gorm/gorm-audit/handler"
+    "gorm.io/driver/sqlite"
+    "gorm.io/gorm"
+)
+
+type User struct {
+    ID    uint   `gorm:"primarykey"`
+    Name  string `gorm:"size:100"`
+    Email string `gorm:"size:100;uniqueIndex"`
+}
+
+func main() {
+    // 连接数据库
+    db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // 创建审计插件
+    auditPlugin := audit.New(&audit.Config{
+        Level:        audit.AuditLevelAll, // 记录所有操作
+        IncludeQuery: true,                // 包含查询操作
+    })
+
+    // 添加控制台处理器
+    consoleHandler := handler.NewConsoleHandler()
+    consoleHandler.SetColor(true)
+    auditPlugin.Use(consoleHandler)
+
+    // 初始化插件
+    if err := db.Use(auditPlugin); err != nil {
+        log.Fatal(err)
+    }
+
+    // 使用 context 跟踪用户信息
+    ctx := context.WithValue(context.Background(), "user_id", "12345")
+    ctx = context.WithValue(ctx, "username", "admin")
+
+    // 创建用户 - 将被审计
+    user := User{Name: "张三", Email: "zhangsan@example.com"}
+    db.WithContext(ctx).Create(&user)
+}
+```
+
+## 配置
+
+### 审计级别
+
+```go
+auditPlugin := audit.New(&audit.Config{
+    Level: audit.AuditLevelAll,          // 记录所有操作（创建、更新、删除、查询）
+    // Level: audit.AuditLevelChangesOnly, // 仅记录变更操作（创建、更新、删除）
+    // Level: audit.AuditLevelNone,        // 禁用审计
+})
+```
+
+### 上下文键
+
+自定义从 context 中提取用户信息的键：
+
+```go
+type contextKey string
+
+auditPlugin := audit.New(&audit.Config{
+    ContextKeys: audit.ContextKeyConfig{
+        UserID:    contextKey("user_id"),
+        Username:  contextKey("username"),
+        IP:        contextKey("ip"),
+        UserAgent: contextKey("user_agent"),
+        RequestID: contextKey("request_id"),
+    },
+})
+```
+
+## 事件处理器
+
+### 控制台处理器
+
+```go
+consoleHandler := handler.NewConsoleHandler()
+consoleHandler.SetColor(true)  // 启用彩色输出
+consoleHandler.SetJSON(false)  // 使用文本格式（true 为 JSON）
+auditPlugin.Use(consoleHandler)
+```
+
+### 自定义处理器
+
+```go
+// 使用函数处理器
+customHandler := handler.EventHandlerFunc(func(ctx context.Context, event *handler.Event) error {
+    log.Printf("自定义处理器: %+v", event)
+    return nil
+})
+auditPlugin.Use(customHandler)
+
+// 使用结构体处理器
+type MyHandler struct{}
+
+func (h *MyHandler) Handle(ctx context.Context, event *handler.Event) error {
+    // 处理事件
+    return nil
+}
+
+auditPlugin.Use(&MyHandler{})
+```
+
+### 处理器中间件
+
+#### 过滤中间件
+
+```go
+// 仅记录删除操作
+filterHandler := handler.NewFilterMiddleware(
+    func(event *handler.Event) bool {
+        return event.Operation == handler.OperationDelete
+    },
+    consoleHandler,
+)
+auditPlugin.Use(filterHandler)
+```
+
+#### 重试中间件
+
+```go
+// 最多重试 3 次，间隔 100ms
+retryHandler := handler.NewRetryMiddleware(
+    consoleHandler,
+    3,                   // 最大重试次数
+    100*time.Millisecond, // 重试间隔
+)
+auditPlugin.Use(retryHandler)
+```
+
+#### 链式中间件
+
+```go
+// 链接多个处理器
+chain := handler.NewChainMiddleware(handler1)
+chain.Then(handler2).Then(handler3)
+auditPlugin.Use(chain)
+```
+
+## 上下文跟踪
+
+通过 context 传递用户信息：
+
+```go
+ctx := context.Background()
+ctx = context.WithValue(ctx, "user_id", "12345")
+ctx = context.WithValue(ctx, "username", "admin")
+ctx = context.WithValue(ctx, "ip", "192.168.1.100")
+ctx = context.WithValue(ctx, "user_agent", "Mozilla/5.0")
+ctx = context.WithValue(ctx, "request_id", "req-001")
+
+// 使用此 context 的所有操作都将包含上述信息
+db.WithContext(ctx).Create(&user)
+```
+
+## 跳过审计
+
+为特定操作跳过审计：
+
+```go
+// 使用 SkipAudit 函数
+audit.SkipAudit(db).Create(&sensitiveUser)
+
+// 跳过多个操作
+tx := audit.SkipAudit(db)
+tx.Create(&user1)
+tx.Create(&user2)
+```
+
+## 事件结构
+
+每个审计事件包含：
+
+```go
+type Event struct {
+    Timestamp  string              // 操作时间戳
+    Operation  Operation           // CREATE, UPDATE, DELETE, QUERY
+    Table      string              // 表名
+    PrimaryKey string              // 主键值
+    OldValues  map[string]any      // 变更前的值（更新/删除）
+    NewValues  map[string]any      // 变更后的值（创建/更新）
+    SQL        string              // 执行的 SQL
+    SQLArgs    []any               // SQL 参数
+    UserID     string              // 用户 ID（来自 context）
+    Username   string              // 用户名（来自 context）
+    IP         string              // IP 地址（来自 context）
+    UserAgent  string              // 用户代理（来自 context）
+    RequestID  string              // 请求 ID（来自 context）
+}
+```
+
+## 示例
+
+查看 [example](example/) 目录中的完整工作示例，演示：
+
+- 创建、读取、更新、删除操作
+- 上下文跟踪
+- 自定义处理器
+- 跳过审计功能
+
+运行示例：
+
+```bash
+cd example
+go run main.go
+```
+
+## 测试
+
+运行测试：
+
+```bash
+go test -v ./...
+```
+
+运行测试并查看覆盖率：
+
+```bash
+go test -cover ./...
+```
+
+## 架构
+
+```
+gorm-audit/
+├── audit.go           # 主插件和 GORM 集成
+├── callback.go        # GORM 回调实现
+├── config.go          # 配置类型和默认值
+├── dispatcher.go      # 事件分发（带 panic 恢复）
+├── event.go           # 内部事件类型
+└── handler/
+    ├── handler.go     # 公共事件接口和类型
+    └── console.go     # 控制台输出处理器
+```
+
+## 性能考虑
+
+- 事件处理器使用 goroutine 异步执行
+- 处理器应该是非阻塞的，以避免性能影响
+- 对于高并发场景，建议使用工作池（通过 `UseWorkerPool` 配置）
+
+## 许可证
+
+MIT License
+
+## 贡献
+
+欢迎贡献！请随时提交 Pull Request。
