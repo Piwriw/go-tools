@@ -19,6 +19,10 @@ type WorkerPool struct {
 	handler   handler.EventHandler
 	closed    bool
 	closedMu  sync.Mutex
+
+	// 新增：批量处理器
+	batchProcessor *BatchProcessor
+	enableBatch    bool
 }
 
 // NewWorkerPool 创建新的工作池
@@ -28,17 +32,24 @@ func NewWorkerPool(h handler.EventHandler, config *WorkerPoolConfig) *WorkerPool
 	}
 
 	wp := &WorkerPool{
-		queue:     make(chan *handler.Event, config.QueueSize),
-		workers:   config.WorkerCount,
-		timeout:   time.Duration(config.Timeout) * time.Millisecond,
-		stopChan:  make(chan struct{}),
-		handler:   h,
+		queue:       make(chan *handler.Event, config.QueueSize),
+		workers:     config.WorkerCount,
+		timeout:     time.Duration(config.Timeout) * time.Millisecond,
+		stopChan:    make(chan struct{}),
+		handler:     h,
+		enableBatch: config.EnableBatch,
 	}
 
-	// 启动 workers
-	for i := 0; i < wp.workers; i++ {
-		wp.wg.Add(1)
-		go wp.worker(i)
+	// 如果启用批量处理，创建 BatchProcessor
+	if config.EnableBatch {
+		wp.batchProcessor = NewBatchProcessor(h, config)
+		wp.batchProcessor.Start()
+	} else {
+		// 启动 workers
+		for i := 0; i < wp.workers; i++ {
+			wp.wg.Add(1)
+			go wp.worker(i)
+		}
 	}
 
 	return wp
@@ -95,6 +106,12 @@ func (wp *WorkerPool) processEventWithRecovery(event *handler.Event) {
 
 // Dispatch 分发事件到工作池
 func (wp *WorkerPool) Dispatch(event *handler.Event) bool {
+	// 如果启用批量处理，使用 BatchProcessor
+	if wp.enableBatch && wp.batchProcessor != nil {
+		return wp.batchProcessor.Dispatch(event)
+	}
+
+	// 否则使用原有的队列机制
 	select {
 	case wp.queue <- event:
 		return true
@@ -114,20 +131,33 @@ func (wp *WorkerPool) Close() {
 	}
 	wp.closed = true
 
-	close(wp.stopChan)
-	close(wp.queue)
-	wp.wg.Wait()
+	// 关闭批量处理器或 workers
+	if wp.enableBatch && wp.batchProcessor != nil {
+		wp.batchProcessor.Close()
+	} else {
+		close(wp.stopChan)
+		close(wp.queue)
+		wp.wg.Wait()
+	}
 
-	// 更新 worker 数量统计
 	wp.workers = 0
 }
 
 // Stats 获取工作池统计信息
 func (wp *WorkerPool) Stats() WorkerPoolStats {
+	if wp.enableBatch && wp.batchProcessor != nil {
+		batchStats := wp.batchProcessor.Stats()
+		return WorkerPoolStats{
+			QueueLength:   batchStats.BufferSize,
+			QueueCapacity: wp.batchProcessor.batchSize,
+			WorkerCount:   1, // BatchProcessor 算作 1 个 worker
+		}
+	}
+
 	return WorkerPoolStats{
-		QueueLength:  len(wp.queue),
+		QueueLength:   len(wp.queue),
 		QueueCapacity: cap(wp.queue),
-		WorkerCount:  wp.workers,
+		WorkerCount:   wp.workers,
 	}
 }
 
