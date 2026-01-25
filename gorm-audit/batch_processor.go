@@ -42,3 +42,47 @@ func NewBatchProcessor(h handler.EventHandler, config *WorkerPoolConfig) *BatchP
 		done:          make(chan struct{}),
 	}
 }
+
+// Start 启动批量处理器
+func (bp *BatchProcessor) Start() {
+	bp.wg.Add(1)
+	go func() {
+		defer bp.wg.Done()
+		defer bp.flushTicker.Stop()
+
+		batch := make([]*handler.Event, 0, bp.batchSize)
+
+		for {
+			select {
+			case event := <-bp.buffer:
+				batch = append(batch, event)
+
+				// 更新统计
+				bp.stats.mu.Lock()
+				bp.stats.BufferSize = len(batch)
+				bp.stats.TotalEvents++
+				bp.stats.mu.Unlock()
+
+				// 数量达到阈值，触发刷新
+				if len(batch) >= bp.batchSize {
+					bp.flush(batch)
+					batch = make([]*handler.Event, 0, bp.batchSize)
+				}
+
+			case <-bp.flushTicker.C:
+				// 定时刷新
+				if len(batch) > 0 {
+					bp.flush(batch)
+					batch = make([]*handler.Event, 0, bp.batchSize)
+				}
+
+			case <-bp.done:
+				// 关闭时刷新剩余事件
+				if len(batch) > 0 {
+					bp.flush(batch)
+				}
+				return
+			}
+		}
+	}()
+}
