@@ -28,11 +28,23 @@ func TestAuditLevelString(t *testing.T) {
 func TestDefaultContextKeys(t *testing.T) {
 	keys := DefaultContextKeys()
 
-	if keys.UserID == nil {
-		t.Error("UserID should not be nil")
+	tests := []struct {
+		name string
+		key  any
+	}{
+		{"UserID", keys.UserID},
+		{"Username", keys.Username},
+		{"IP", keys.IP},
+		{"UserAgent", keys.UserAgent},
+		{"RequestID", keys.RequestID},
 	}
-	if keys.Username == nil {
-		t.Error("Username should not be nil")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.key == nil {
+				t.Errorf("%s should not be nil", tt.name)
+			}
+		})
 	}
 }
 

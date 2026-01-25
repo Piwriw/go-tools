@@ -4,9 +4,9 @@ package audit
 type AuditLevel int
 
 const (
-	AuditLevelAll AuditLevel = iota // 记录所有操作
-	AuditLevelChangesOnly           // 仅记录变更操作
-	AuditLevelNone                  // 不记录
+	AuditLevelAll         AuditLevel = iota // 记录所有操作
+	AuditLevelChangesOnly                   // 仅记录变更操作
+	AuditLevelNone                          // 不记录
 )
 
 // String 实现 Stringer 接口
