@@ -1,6 +1,8 @@
 package audit
 
 import (
+	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -85,4 +87,38 @@ func (bp *BatchProcessor) Start() {
 			}
 		}
 	}()
+}
+
+// flush 刷新一批事件，逐个调用 handler
+func (bp *BatchProcessor) flush(batch []*handler.Event) {
+	bp.stats.mu.Lock()
+	bp.stats.TotalBatches++
+	bp.stats.TotalFlushes++
+	bp.stats.AvgBatchSize = float64(bp.stats.TotalEvents) / float64(bp.stats.TotalBatches)
+	bp.stats.LastFlushTime = time.Now()
+	bp.stats.BufferSize = 0
+	bp.stats.mu.Unlock()
+
+	for _, event := range batch {
+		bp.safeHandle(event)
+	}
+}
+
+// safeHandle 安全地处理单个事件，带 panic 恢复
+func (bp *BatchProcessor) safeHandle(event *handler.Event) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[BatchProcessor] panic recovered: %v", r)
+			bp.stats.mu.Lock()
+			bp.stats.TotalErrors++
+			bp.stats.mu.Unlock()
+		}
+	}()
+
+	if err := bp.handler.Handle(context.Background(), event); err != nil {
+		log.Printf("[BatchProcessor] handler error: %v", err)
+		bp.stats.mu.Lock()
+		bp.stats.TotalErrors++
+		bp.stats.mu.Unlock()
+	}
 }
