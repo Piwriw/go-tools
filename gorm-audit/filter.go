@@ -123,3 +123,40 @@ func (f *OperationFilter) ShouldAudit(event *AuditEvent) bool {
 	// 只审计配置的操作类型
 	return f.operations[event.Operation]
 }
+
+// UserFilter 用户 ID 过滤器
+type UserFilter struct {
+	mode    FilterMode
+	userIDs map[string]bool
+}
+
+// NewUserFilter 创建用户 ID 过滤器
+func NewUserFilter(mode FilterMode, userIDs []string) *UserFilter {
+	idMap := make(map[string]bool, len(userIDs))
+	for _, id := range userIDs {
+		idMap[id] = true
+	}
+	return &UserFilter{
+		mode:    mode,
+		userIDs: idMap,
+	}
+}
+
+// ShouldAudit 实现过滤逻辑
+func (f *UserFilter) ShouldAudit(event *AuditEvent) bool {
+	// 如果没有用户信息，默认审计
+	if event.UserID == "" {
+		return true
+	}
+
+	matched := f.userIDs[event.UserID]
+
+	switch f.mode {
+	case FilterModeWhitelist:
+		return matched // 白名单：只有匹配的用户才审计
+	case FilterModeBlacklist:
+		return !matched // 黑名单：匹配的用户不审计
+	default:
+		return true
+	}
+}
