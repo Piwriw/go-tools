@@ -8,6 +8,7 @@ import (
 
 	"github.com/piwriw/gorm/gorm-audit"
 	"github.com/piwriw/gorm/gorm-audit/handler"
+	"github.com/piwriw/gorm/gorm-audit/types"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -54,7 +55,7 @@ func main() {
 		log.Fatalf("Failed to migrate: %v", err)
 	}
 
-	// 创建审计插件
+	// 创建审计插件 - 演示事件过滤功能
 	auditPlugin := audit.New(&audit.Config{
 		Level:        audit.AuditLevelAll, // 记录所有操作
 		IncludeQuery: true,                // 包含查询操作
@@ -64,6 +65,20 @@ func main() {
 			IP:        ipKey,
 			UserAgent: userAgentKey,
 			RequestID: requestIDKey,
+		},
+		// 添加事件过滤器
+		Filters: []audit.Filter{
+			// 只审计 users 和 products 表（白名单模式）
+			audit.NewTableFilter(audit.FilterModeWhitelist, []string{"users", "products"}),
+
+			// 只审计 create 和 update 操作
+			audit.NewOperationFilter([]types.Operation{
+				types.OperationCreate,
+				types.OperationUpdate,
+			}),
+
+			// 排除测试用户（黑名单模式）
+			audit.NewUserFilter(audit.FilterModeBlacklist, []string{"test_user"}),
 		},
 	})
 
@@ -127,6 +142,24 @@ func main() {
 	// 5. Skip Audit 示例
 	fmt.Println("\n--- Skip Audit Example ---")
 	skipAuditUser(ctx, db, "Charlie", "charlie@example.com", 35, "Australia")
+
+	// 6. 配置热更新示例
+	fmt.Println("\n--- Config Reload Example ---")
+	fmt.Printf("Current audit level: %v\n", auditPlugin.GetLevel())
+
+	// 演示配置热更新
+	fmt.Println("Attempting to reload config...")
+	if err := auditPlugin.Reload(); err != nil {
+		fmt.Printf("Reload failed (expected if no env vars set): %v\n", err)
+	} else {
+		fmt.Printf("Reload successful! New audit level: %v\n", auditPlugin.GetLevel())
+	}
+
+	// 提示如何使用环境变量
+	fmt.Println("\n💡 Tip: You can control audit level via environment variables:")
+	fmt.Println("   export GORM_AUDIT_LEVEL=all          # Audit all operations")
+	fmt.Println("   export GORM_AUDIT_LEVEL=changes_only # Audit only changes")
+	fmt.Println("   export GORM_AUDIT_LEVEL=none         # Disable auditing")
 
 	// 等待异步处理器完成
 	fmt.Println("\nWaiting for async handlers to complete...")

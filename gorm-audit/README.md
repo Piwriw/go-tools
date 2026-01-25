@@ -87,6 +87,66 @@ auditPlugin := audit.New(&audit.Config{
 })
 ```
 
+### Event Filtering
+
+Support flexible event filtering mechanisms:
+
+#### Table Name Filtering
+
+```go
+// Only audit users and orders tables
+audit.New(&audit.Config{
+    Filters: []audit.Filter{
+        audit.NewTableFilter(audit.FilterModeWhitelist, []string{"users", "orders"}),
+    },
+})
+```
+
+#### Operation Type Filtering
+
+```go
+// Only audit create and update operations
+audit.NewOperationFilter([]types.Operation{
+    types.OperationCreate,
+    types.OperationUpdate,
+})
+```
+
+#### User Filtering
+
+```go
+// Exclude test users
+audit.NewUserFilter(audit.FilterModeBlacklist, []string{"test_user"})
+```
+
+#### Composite Filters
+
+```go
+audit.NewCompositeFilter(audit.FilterLogicAnd,
+    audit.NewTableFilter(audit.FilterModeWhitelist, []string{"users"}),
+    audit.NewOperationFilter([]types.Operation{types.OperationCreate}),
+)
+```
+
+### Config Hot Reload
+
+Support runtime configuration reload:
+
+```go
+// Control via environment variables
+// export GORM_AUDIT_LEVEL=all
+
+audit := audit.New(&audit.Config{
+    Level: audit.AuditLevelChangesOnly,
+})
+
+// Runtime reload
+audit.Reload()
+```
+
+Supported environment variables:
+- `GORM_AUDIT_LEVEL`: `all`, `changes_only`, `none`
+
 ### Context Keys
 
 Customize the keys used to extract user information from context:
@@ -375,6 +435,66 @@ auditPlugin := audit.New(&audit.Config{
     // Level: audit.AuditLevelNone,        // 禁用审计
 })
 ```
+
+### 事件过滤
+
+支持灵活的事件过滤机制：
+
+#### 表名过滤
+
+```go
+// 只审计 users 和 orders 表
+audit.New(&audit.Config{
+    Filters: []audit.Filter{
+        audit.NewTableFilter(audit.FilterModeWhitelist, []string{"users", "orders"}),
+    },
+})
+```
+
+#### 操作类型过滤
+
+```go
+// 只审计 create 和 update 操作
+audit.NewOperationFilter([]types.Operation{
+    types.OperationCreate,
+    types.OperationUpdate,
+})
+```
+
+#### 用户过滤
+
+```go
+// 排除测试用户
+audit.NewUserFilter(audit.FilterModeBlacklist, []string{"test_user"})
+```
+
+#### 组合过滤器
+
+```go
+audit.NewCompositeFilter(audit.FilterLogicAnd,
+    audit.NewTableFilter(audit.FilterModeWhitelist, []string{"users"}),
+    audit.NewOperationFilter([]types.Operation{types.OperationCreate}),
+)
+```
+
+### 配置热更新
+
+支持运行时重新加载配置：
+
+```go
+// 通过环境变量控制
+// export GORM_AUDIT_LEVEL=all
+
+audit := audit.New(&audit.Config{
+    Level: audit.AuditLevelChangesOnly,
+})
+
+// 运行时重新加载
+audit.Reload()
+```
+
+支持的环境变量：
+- `GORM_AUDIT_LEVEL`: `all`, `changes_only`, `none`
 
 ### 上下文键
 
