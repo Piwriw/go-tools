@@ -22,6 +22,7 @@ type Dispatcher struct {
 	mu              sync.RWMutex
 	workerPool      *WorkerPool
 	useWorkerPool   bool
+	metrics         *MetricsCollector
 }
 
 // NewDispatcher 创建新的分发器
@@ -30,6 +31,7 @@ func NewDispatcher() *Dispatcher {
 		handlers:        make([]EventHandler, 0),
 		handlerHandlers: make([]handler.EventHandler, 0),
 		useWorkerPool:   false,
+		metrics:         NewMetricsCollector(),
 	}
 }
 
@@ -40,6 +42,7 @@ func NewDispatcherWithWorkerPool(h handler.EventHandler, config *WorkerPoolConfi
 		handlerHandlers: make([]handler.EventHandler, 0),
 		workerPool:      NewWorkerPool(h, config),
 		useWorkerPool:   true,
+		metrics:         NewMetricsCollector(),
 	}
 }
 
