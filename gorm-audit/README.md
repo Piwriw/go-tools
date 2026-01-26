@@ -287,6 +287,54 @@ audit.New(&audit.Config{
 - Batch flushing reduces I/O overhead
 - Suitable for log-type Handlers
 
+## 采样和降级
+
+### 采样配置
+
+在高并发场景下，可以通过采样降低审计开销：
+
+```go
+audit := audit.New(&audit.Config{
+    Sampling: &audit.SamplingConfig{
+        Enabled:  true,
+        Strategy: audit.StrategyRandom,
+        Rate:     0.1, // 10% 采样
+    },
+})
+```
+
+**采样策略类型：**
+
+- `StrategyRandom`: 随机采样（默认）
+- `StrategyUniform`: 均匀采样（计划中）
+- `StrategySmart`: 智能采样（计划中）
+
+### 降级配置
+
+当系统负载高时自动降低审计级别（需要启用 Worker Pool）：
+
+```go
+audit := audit.New(&audit.Config{
+    UseWorkerPool: true,
+    WorkerConfig:  audit.DefaultWorkerPoolConfig(),
+    Degradation: &audit.DegradationConfig{
+        Enabled:         true,
+        CPUThreshold:    0.8,
+        QueueThreshold:  900,
+        Levels:          audit.DefaultDegradationLevels(1000),
+        RecoveryCooldown: 30 * time.Second,
+    },
+})
+```
+
+**默认降级级别：**
+
+| 级别 | CPU 阈值 | 队列阈值 | 审计级别 | 采样率 |
+|------|----------|----------|----------|--------|
+| mild | 70% | 70% | ChangesOnly | 50% |
+| severe | 85% | 85% | None | 10% |
+| critical | 95% | 95% | None | 0% |
+
 ## Metrics Collection
 
 Supports Prometheus-compatible metrics collection:
@@ -728,6 +776,54 @@ audit.New(&audit.Config{
 - 减少 Handler 调用频率
 - 批量刷新可降低 I/O 开销
 - 适合日志类 Handler
+
+## 采样和降级
+
+### 采样配置
+
+在高并发场景下，可以通过采样降低审计开销：
+
+```go
+audit := audit.New(&audit.Config{
+    Sampling: &audit.SamplingConfig{
+        Enabled:  true,
+        Strategy: audit.StrategyRandom,
+        Rate:     0.1, // 10% 采样
+    },
+})
+```
+
+**采样策略类型：**
+
+- `StrategyRandom`: 随机采样（默认）
+- `StrategyUniform`: 均匀采样（计划中）
+- `StrategySmart`: 智能采样（计划中）
+
+### 降级配置
+
+当系统负载高时自动降低审计级别（需要启用 Worker Pool）：
+
+```go
+audit := audit.New(&audit.Config{
+    UseWorkerPool: true,
+    WorkerConfig:  audit.DefaultWorkerPoolConfig(),
+    Degradation: &audit.DegradationConfig{
+        Enabled:         true,
+        CPUThreshold:    0.8,
+        QueueThreshold:  900,
+        Levels:          audit.DefaultDegradationLevels(1000),
+        RecoveryCooldown: 30 * time.Second,
+    },
+})
+```
+
+**默认降级级别：**
+
+| 级别 | CPU 阈值 | 队列阈值 | 审计级别 | 采样率 |
+|------|----------|----------|----------|--------|
+| mild | 70% | 70% | ChangesOnly | 50% |
+| severe | 85% | 85% | None | 10% |
+| critical | 95% | 95% | None | 0% |
 
 ## 指标收集
 
