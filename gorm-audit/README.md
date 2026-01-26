@@ -287,6 +287,45 @@ audit.New(&audit.Config{
 - Batch flushing reduces I/O overhead
 - Suitable for log-type Handlers
 
+## Metrics Collection
+
+Supports Prometheus-compatible metrics collection:
+
+```go
+audit.New(&audit.Config{
+    EnableMetrics: true,  // Enable metrics collection
+})
+```
+
+**Available Metrics**:
+
+- `gorm_audit_events_total` - Total events (grouped by table, operation, status)
+- `gorm_audit_events_success_total` - Successful events count
+- `gorm_audit_events_error_total` - Failed events count
+- `gorm_audit_events_duration_seconds` - Event processing latency (histogram)
+- `gorm_audit_queue_size` - Queue size
+- `gorm_audit_buffer_size` - Batch buffer size
+
+**Usage**:
+
+```go
+// Expose metrics in HTTP server
+http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/plain")
+    w.Write([]byte(audit.Metrics()))
+})
+```
+
+**Prometheus Configuration**:
+
+```yaml
+scrape_configs:
+  - job_name: 'gorm-audit'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 15s
+```
+
 ## Context Tracking
 
 Pass user information through context:
@@ -689,6 +728,45 @@ audit.New(&audit.Config{
 - 减少 Handler 调用频率
 - 批量刷新可降低 I/O 开销
 - 适合日志类 Handler
+
+## 指标收集
+
+支持 Prometheus 兼容的指标收集：
+
+```go
+audit.New(&audit.Config{
+    EnableMetrics: true,  // 启用指标收集
+})
+```
+
+**可用指标**：
+
+- `gorm_audit_events_total` - 事件总数（按 table, operation, status 分组）
+- `gorm_audit_events_success_total` - 成功事件数
+- `gorm_audit_events_error_total` - 失败事件数
+- `gorm_audit_events_duration_seconds` - 事件处理延迟（直方图）
+- `gorm_audit_queue_size` - 队列大小
+- `gorm_audit_buffer_size` - 批量缓冲区大小
+
+**使用方式**：
+
+```go
+// 在 HTTP 服务器中暴露指标
+http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/plain")
+    w.Write([]byte(audit.Metrics()))
+})
+```
+
+**Prometheus 配置**：
+
+```yaml
+scrape_configs:
+  - job_name: 'gorm-audit'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 15s
+```
 
 ## 上下文跟踪
 
