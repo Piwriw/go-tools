@@ -17,6 +17,8 @@ type Config struct {
 	WorkerConfig  *WorkerPoolConfig
 	Filters       []Filter // 事件过滤器列表
 	EnableMetrics bool     // 是否启用指标收集
+	Sampling      *SamplingConfig
+	Degradation   *DegradationConfig
 }
 
 // Audit GORM 审计插件
