@@ -161,6 +161,23 @@ func (wp *WorkerPool) Stats() WorkerPoolStats {
 	}
 }
 
+// GetQueueSize 获取当前队列大小
+func (wp *WorkerPool) GetQueueSize() int {
+	if wp.enableBatch && wp.batchProcessor != nil {
+		stats := wp.batchProcessor.Stats()
+		return stats.BufferSize
+	}
+	return len(wp.queue)
+}
+
+// GetQueueCapacity 获取队列容量
+func (wp *WorkerPool) GetQueueCapacity() int {
+	if wp.enableBatch && wp.batchProcessor != nil {
+		return wp.batchProcessor.batchSize
+	}
+	return cap(wp.queue)
+}
+
 // WorkerPoolStats 工作池统计信息
 type WorkerPoolStats struct {
 	QueueLength  int
