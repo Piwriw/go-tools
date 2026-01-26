@@ -12,6 +12,7 @@ func main() {
 	http.HandleFunc("/go", myHandler)
 	http.HandleFunc("/get", getParamsHandler)
 	http.HandleFunc("/post", postHandler)
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/Users/joohwan/GolandProjects"))))
 	//http.HandleFunc("/ungo",myHandler2 )
 	// addr：监听的地址
 	// handler：回调函数

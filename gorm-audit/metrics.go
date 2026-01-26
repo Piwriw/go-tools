@@ -133,6 +133,11 @@ func (m *MetricsCollector) GetBufferSize() int64 {
 	return atomic.LoadInt64(&m.bufferSize)
 }
 
+// GetTotalEvents 获取总事件数
+func (m *MetricsCollector) GetTotalEvents() int64 {
+	return atomic.LoadInt64(&m.totalEvents)
+}
+
 // String 返回 Prometheus 格式的指标
 func (m *MetricsCollector) String() string {
 	var sb strings.Builder

@@ -136,7 +136,7 @@ func main() {
 	}()
 
 	fmt.Println("=== GORM Audit Plugin Demo ===")
-	fmt.Println("Metrics available at: http://localhost:9090/metrics\n")
+	fmt.Println("Metrics available at: http://localhost:9090/metrics")
 
 	// 创建 context
 	ctx := context.WithValue(context.Background(), userIDKey, "12345")

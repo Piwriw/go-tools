@@ -17,7 +17,7 @@ func main() {
 	add()
 	// finish()
 	// exit()
-	//addDetail()
+	addDetail()
 	//startHTTPServer()
 }
 func add() {
@@ -25,6 +25,7 @@ func add() {
 	for i := 0; i < 10; i++ {
 		bar.Add(1)
 		Task(bar, i)
+
 	}
 }
 func finish() {
@@ -69,6 +70,7 @@ func addDetail() {
 		progressbar.OptionFullWidth(),
 		progressbar.OptionSetRenderBlankState(true),
 		progressbar.OptionSetMaxDetailRow(5),
+		progressbar.OptionClearOnFinish(),
 	)
 
 	for i := 0; i < 10; i++ {

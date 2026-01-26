@@ -9,10 +9,20 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+var goKitStyleReplaceAttrFunc = func(groups []string, a slog.Attr) slog.Attr {
+	key := a.Key
+	switch key {
+	case slog.TimeKey:
+		t := a.Value.Time()
+		a.Value = slog.StringValue(t.UTC().Format("2006-01-02 15:04:05"))
+	}
+	return a
+}
+
 func main() {
 	logger := InitLogger("app.log", "warn", 1, 5, 0, true)
 	defer logger.Close()
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 100; i++ {
 		slog.Info("LOG int arr", slog.Any("intarr", "sss"))
 		slog.Info("This is info log")
 		slog.Warn("This is warning log")
@@ -48,7 +58,7 @@ func InitLogger(filePath string, logLevel string, maxSize int, maxBackups int, m
 	}
 
 	// 创建自定义的 `slog.Handler`，将日志输出到 multiWriter
-	handler := slog.NewTextHandler(multiWriter, &slog.HandlerOptions{AddSource: true, Level: level})
+	handler := slog.NewTextHandler(multiWriter, &slog.HandlerOptions{AddSource: true, Level: level, ReplaceAttr: goKitStyleReplaceAttrFunc})
 
 	// 创建 logger 实例
 	logger := slog.New(handler)

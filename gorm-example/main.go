@@ -1,39 +1,44 @@
 package main
 
 import (
-	"github.com/piwriw/gorm/logger"
-
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"log"
 )
 
 type User struct {
-	ID int
-	// 其他字段...
+	ID   uint `gorm:"primaryKey"`
+	Name string
+	Age  int
 }
 
 func main() {
+	// 构建 MySQL DSN（Data Source Name）
+	dsn := "root:root@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local"
 
-	// 打印 JSON
-	//fmt.Println(string(jsonData))
-	pgDb, err := gorm.Open(postgres.Open("postgres://yunqu:YunquTech01*@@10.0.0.195:15432/devops"), &gorm.Config{
-		Logger: logger.SetGormLogger(),
-	})
+	// 使用 GORM 连接 MySQL
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		panic(err)
+		log.Fatalf("连接数据库失败: %v", err)
 	}
-	sql := `select id from athena_config_alertsddd `
-
-	for i := 0; i < 1000; i++ {
-		sql += "union all select id from athena_config_alertsddd"
-		//var user User
-		//pgDb.First(&user)
-		//fmt.Println(user)
-		//fmt.Println(user.ID)
-		//fmt.Println(user.Name)
-		//fmt.Println(user.Age)
+	s, err := db.DB()
+	s.Stats() // 自动迁移：创建表
+	//err = db.AutoMigrate(&User{})
+	//if err != nil {
+	//	log.Fatalf("迁移表失败: %v", err)
+	//}
+	// 查询数据
+	user := &User{ID: 1,
+		Name: "user1",
+		Age:  18,
 	}
 
-	pgDb.Exec(sql)
-	//var id int
+	if err := db.Where(user).First(user).Error; err != nil {
+		log.Fatalf("Failed to find user: %v", err)
+	}
+	//// 查询数据
+	//user = &User{}
+	//if err := db.Where("id = ?", 1).First(user); err != nil {
+	//	log.Fatalf("Failed to find user: %v", err)
+	//}
 }
