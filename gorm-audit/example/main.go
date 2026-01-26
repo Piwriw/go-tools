@@ -58,9 +58,9 @@ func main() {
 
 	// 创建审计插件 - 演示批量处理和事件过滤功能
 	auditPlugin := audit.New(&audit.Config{
-		Level:          audit.AuditLevelAll, // 记录所有操作
-		IncludeQuery:   true,                // 包含查询操作
-		EnableMetrics:  true,                // 启用指标收集
+		Level:         audit.AuditLevelAll, // 记录所有操作
+		IncludeQuery:  true,                // 包含查询操作
+		EnableMetrics: true,                // 启用指标收集
 		ContextKeys: audit.ContextKeyConfig{
 			UserID:    userIDKey,
 			Username:  usernameKey,
@@ -74,10 +74,18 @@ func main() {
 			WorkerCount:   10,
 			QueueSize:     10000,
 			Timeout:       5000,
-			EnableBatch:   true,                 // 启用批量处理
-			BatchSize:     100,                  // 演示用小批量
-			FlushInterval: 2 * time.Second,      // 2秒刷新间隔
+			EnableBatch:   true,            // 启用批量处理
+			BatchSize:     100,             // 演示用小批量
+			FlushInterval: 2 * time.Second, // 2秒刷新间隔
 		},
+		// 采样配置
+		Sampling: &audit.SamplingConfig{
+			Enabled:  true,
+			Strategy: audit.StrategyRandom,
+			Rate:     1.0, // 初始 100% 采样
+		},
+		// 降级配置（仅在启用 Worker Pool 时生效）
+		Degradation: nil, // 示例中不启用 Worker Pool，所以设为 nil
 		// 添加事件过滤器
 		Filters: []audit.Filter{
 			// 只审计 users 和 products 表（白名单模式）
