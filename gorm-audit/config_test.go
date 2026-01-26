@@ -1,0 +1,63 @@
+package audit
+
+import (
+	"testing"
+)
+
+func TestAuditLevelString(t *testing.T) {
+	tests := []struct {
+		name     string
+		level    AuditLevel
+		expected string
+	}{
+		{"All", AuditLevelAll, "all"},
+		{"ChangesOnly", AuditLevelChangesOnly, "changes_only"},
+		{"None", AuditLevelNone, "none"},
+		{"Unknown", AuditLevel(100), "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.level.String(); got != tt.expected {
+				t.Errorf("String() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestDefaultContextKeys(t *testing.T) {
+	keys := DefaultContextKeys()
+
+	tests := []struct {
+		name string
+		key  any
+	}{
+		{"UserID", keys.UserID},
+		{"Username", keys.Username},
+		{"IP", keys.IP},
+		{"UserAgent", keys.UserAgent},
+		{"RequestID", keys.RequestID},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.key == nil {
+				t.Errorf("%s should not be nil", tt.name)
+			}
+		})
+	}
+}
+
+func TestDefaultWorkerPoolConfig(t *testing.T) {
+	config := DefaultWorkerPoolConfig()
+
+	if config.WorkerCount != 10 {
+		t.Errorf("expected WorkerCount 10, got %d", config.WorkerCount)
+	}
+	if config.QueueSize != 1000 {
+		t.Errorf("expected QueueSize 1000, got %d", config.QueueSize)
+	}
+	if config.Timeout != 5000 {
+		t.Errorf("expected Timeout 5000, got %d", config.Timeout)
+	}
+}

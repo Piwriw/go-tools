@@ -30,6 +30,7 @@ use (
 	./go-jwt
 	./go-minio
 	./go-mysql
+	./go-progressbar
 	./go-prometheus
 	./go-queue
 	./go-quic
@@ -39,7 +40,10 @@ use (
 	./go-sh
 	./go-snowflake
 	./go-test
+	./go-validator
 	./godotenv
+	./gorm-audit
+	./gorm-audit/example
 	./gorm-example
 	./gron
 	./k8s
@@ -51,8 +55,6 @@ use (
 	./tools/kubeedge-token
 	./tools/osrelease
 	./viper
-	./go-validator
-	./go-progressbar
-	gocron
 	distributed/snowflake
+	gocron
 )
