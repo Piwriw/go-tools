@@ -58,6 +58,19 @@ type WorkerPoolConfig struct {
 	FlushInterval time.Duration // 刷新间隔，默认 10秒
 }
 
+// DefaultConfig 返回默认配置
+func DefaultConfig() *Config {
+	return &Config{
+		Level:         AuditLevelAll,
+		IncludeQuery:  true,
+		ContextKeys:   DefaultContextKeys(),
+		UseWorkerPool: false,
+		WorkerConfig:  nil,
+		Filters:       nil,
+		EnableMetrics: false,
+	}
+}
+
 // DefaultWorkerPoolConfig 返回默认的 worker pool 配置
 func DefaultWorkerPoolConfig() *WorkerPoolConfig {
 	return &WorkerPoolConfig{
