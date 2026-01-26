@@ -63,8 +63,8 @@ func NewRandomSampler(rate float64) *RandomSampler {
 
 // ShouldSample 实现 SamplingStrategy 接口
 func (r *RandomSampler) ShouldSample(ctx context.Context, event *handler.Event) bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	if r.rate >= MaxSampleRate {
 		return true
@@ -93,8 +93,8 @@ func (r *RandomSampler) UpdateRate(rate float64) {
 
 // GetEffectiveRate 返回有效采样率
 func (r *RandomSampler) GetEffectiveRate() float64 {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	return r.rate
 }
 
