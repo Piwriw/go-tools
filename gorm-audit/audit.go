@@ -53,6 +53,11 @@ func New(config *Config) *Audit {
 		dispatcher = NewDispatcher()
 	}
 
+	// 初始化采样和降级
+	if dispatcher != nil {
+		dispatcher.SetupSamplingAndDegradation(config.Sampling, config.Degradation)
+	}
+
 	return &Audit{
 		config:     config,
 		dispatcher: dispatcher,
