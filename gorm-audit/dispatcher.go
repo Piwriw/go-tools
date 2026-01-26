@@ -160,3 +160,11 @@ func (d *Dispatcher) Close() {
 		wp.Close()
 	}
 }
+
+// Metrics 返回 Prometheus 格式的指标
+func (d *Dispatcher) Metrics() string {
+	if d.metrics != nil {
+		return d.metrics.String()
+	}
+	return ""
+}

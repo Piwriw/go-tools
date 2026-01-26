@@ -124,3 +124,11 @@ func (a *Audit) GetLevel() AuditLevel {
 	defer a.configMu.RUnlock()
 	return a.config.Level
 }
+
+// Metrics 返回 Prometheus 格式的指标
+func (a *Audit) Metrics() string {
+	if a.dispatcher != nil {
+		return a.dispatcher.Metrics()
+	}
+	return ""
+}
