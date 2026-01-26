@@ -133,6 +133,9 @@ type DegradationConfig struct {
 
 	// 恢复配置
 	RecoveryCooldown time.Duration // 冷却期
+
+	// 采样配置引用（用于恢复时重置采样率）
+	Sampling *SamplingConfig
 }
 
 // DefaultSamplingConfig 返回默认采样配置
