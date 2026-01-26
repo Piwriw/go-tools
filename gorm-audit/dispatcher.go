@@ -6,6 +6,7 @@ import (
 	"log"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/piwriw/gorm/gorm-audit/handler"
 )
@@ -89,10 +90,24 @@ func (d *Dispatcher) DispatchHandler(ctx context.Context, event *handler.Event) 
 		return
 	}
 
-	// 否则使用 goroutine 分发
+	// 记录开始时间
+	start := time.Now()
+
+	// 使用 goroutine 分发
 	for _, h := range handlers {
 		if h != nil {
-			go d.safeHandleHandler(ctx, h, event)
+			go func(handler handler.EventHandler) {
+				status := "success"
+				if err := handler.Handle(ctx, event); err != nil {
+					status = "error"
+				}
+
+				// 记录指标（如果启用了指标收集）
+				if d.metrics != nil {
+					latency := time.Since(start).Seconds()
+					d.metrics.RecordEvent(event.Table, string(event.Operation), status, latency)
+				}
+			}(h)
 		}
 	}
 }
