@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/piwriw/gorm/gorm-audit"
@@ -57,8 +58,9 @@ func main() {
 
 	// 创建审计插件 - 演示批量处理和事件过滤功能
 	auditPlugin := audit.New(&audit.Config{
-		Level:        audit.AuditLevelAll, // 记录所有操作
-		IncludeQuery: true,                // 包含查询操作
+		Level:          audit.AuditLevelAll, // 记录所有操作
+		IncludeQuery:   true,                // 包含查询操作
+		EnableMetrics:  true,                // 启用指标收集
 		ContextKeys: audit.ContextKeyConfig{
 			UserID:    userIDKey,
 			Username:  usernameKey,
@@ -112,7 +114,21 @@ func main() {
 		log.Fatalf("Failed to initialize audit plugin: %v", err)
 	}
 
-	fmt.Println("=== GORM Audit Plugin Demo ===\n")
+	// 启动指标服务器
+	go func() {
+		http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/plain")
+			metrics := auditPlugin.Metrics()
+			w.Write([]byte(metrics))
+		})
+		log.Println("Metrics server listening on :9090")
+		if err := http.ListenAndServe(":9090", nil); err != nil && err != http.ErrServerClosed {
+			log.Printf("Metrics server error: %v", err)
+		}
+	}()
+
+	fmt.Println("=== GORM Audit Plugin Demo ===")
+	fmt.Println("Metrics available at: http://localhost:9090/metrics\n")
 
 	// 创建 context
 	ctx := context.WithValue(context.Background(), userIDKey, "12345")
@@ -194,6 +210,11 @@ func main() {
 	time.Sleep(3 * time.Second)
 
 	fmt.Println("\n=== Demo Complete ===")
+	fmt.Println("\nYou can access metrics at: http://localhost:9090/metrics")
+	fmt.Println("Press Ctrl+C to exit")
+
+	// 保持程序运行以允许访问指标端点
+	select {}
 }
 
 // createUser 创建用户
