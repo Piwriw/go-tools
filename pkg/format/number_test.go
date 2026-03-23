@@ -516,3 +516,318 @@ func ExampleToFloat64() {
 	// 123.456
 	// 1
 }
+
+// TestIsNumber 测试判断字符串是否为数字
+// 测试场景：整数、浮点数、科学计数法、边界值、非法输入
+func TestIsNumber(t *testing.T) {
+	tests := []struct {
+		name     string // 测试用例名称
+		input    string // 输入参数
+		expected bool   // 预期返回结果
+	}{
+		// 整数
+		{
+			name:     "正整数",
+			input:    "123",
+			expected: true,
+		},
+		{
+			name:     "负整数",
+			input:    "-456",
+			expected: true,
+		},
+		{
+			name:     "零",
+			input:    "0",
+			expected: true,
+		},
+		{
+			name:     "带正号的整数",
+			input:    "+789",
+			expected: true,
+		},
+		// 浮点数
+		{
+			name:     "正浮点数",
+			input:    "123.456",
+			expected: true,
+		},
+		{
+			name:     "负浮点数",
+			input:    "-78.9",
+			expected: true,
+		},
+		{
+			name:     "小数点前无数字",
+			input:    ".5",
+			expected: true,
+		},
+		{
+			name:     "小数点后无数字",
+			input:    "5.",
+			expected: true,
+		},
+		{
+			name:     "带正号的浮点数",
+			input:    "+12.34",
+			expected: true,
+		},
+		// 科学计数法
+		{
+			name:     "科学计数法_小写e",
+			input:    "1e10",
+			expected: true,
+		},
+		{
+			name:     "科学计数法_大写E",
+			input:    "1.5E3",
+			expected: true,
+		},
+		{
+			name:     "科学计数法_负指数",
+			input:    "1.5e-5",
+			expected: true,
+		},
+		{
+			name:     "科学计数法_正指数",
+			input:    "2.5e+5",
+			expected: true,
+		},
+		// 边界值
+		{
+			name:     "空字符串",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "纯空格",
+			input:    "   ",
+			expected: false,
+		},
+		{
+			name:     "前后有空格",
+			input:    " 123 ",
+			expected: false,
+		},
+		// 非法输入
+		{
+			name:     "包含字母",
+			input:    "abc",
+			expected: false,
+		},
+		{
+			name:     "字母数字混合",
+			input:    "12a34",
+			expected: false,
+		},
+		{
+			name:     "多个小数点",
+			input:    "1.2.3",
+			expected: false,
+		},
+		{
+			name:     "只有符号_加号",
+			input:    "+",
+			expected: false,
+		},
+		{
+			name:     "只有符号_减号",
+			input:    "-",
+			expected: false,
+		},
+		{
+			name:     "数字分隔符_下划线",
+			input:    "1_000",
+			expected: true,
+		},
+		{
+			name:     "特殊字符_逗号",
+			input:    "1,000",
+			expected: false,
+		},
+		{
+			name:     "十六进制",
+			input:    "0x1F",
+			expected: false,
+		},
+		{
+			name:     "二进制",
+			input:    "0b101",
+			expected: false,
+		},
+		// 特殊值
+		{
+			name:     "NaN",
+			input:    "NaN",
+			expected: false,
+		},
+		{
+			name:     "nan",
+			input:    "nan",
+			expected: false,
+		},
+		{
+			name:     "Inf",
+			input:    "Inf",
+			expected: false,
+		},
+		{
+			name:     "inf",
+			input:    "inf",
+			expected: false,
+		},
+		{
+			name:     "+Inf",
+			input:    "+Inf",
+			expected: false,
+		},
+		{
+			name:     "-Inf",
+			input:    "-Inf",
+			expected: false,
+		},
+		{
+			name:     "Infinity",
+			input:    "Infinity",
+			expected: false,
+		},
+		{
+			name:     "-Infinity",
+			input:    "-Infinity",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsNumber(tt.input)
+			assert.Equal(t, tt.expected, result, "IsNumber(%q) 结果应与预期一致", tt.input)
+		})
+	}
+}
+
+// TestIsNumber_Parallel 并发安全测试_IsNumber
+func TestIsNumber_Parallel(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"整数", "123", true},
+		{"浮点数", "123.456", true},
+		{"科学计数法", "1e10", true},
+		{"非法输入", "abc", false},
+		{"空字符串", "", false},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			for i := 0; i < 100; i++ {
+				result := IsNumber(tt.input)
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
+
+// BenchmarkIsNumber 性能基准测试_IsNumber
+func BenchmarkIsNumber(b *testing.B) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"整数", "123456"},
+		{"浮点数", "123.456789"},
+		{"科学计数法", "1.23456789e-10"},
+		{"非法输入", "not_a_number"},
+		{"空字符串", ""},
+	}
+
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = IsNumber(tt.input)
+			}
+		})
+	}
+}
+
+// BenchmarkIsNumber_Parallel 并发性能基准测试
+func BenchmarkIsNumber_Parallel(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = IsNumber("123.456")
+		}
+	})
+}
+
+// ExampleIsNumber 示例代码_IsNumber
+func ExampleIsNumber() {
+	fmt.Println(IsNumber("123"))
+	fmt.Println(IsNumber("-45.67"))
+	fmt.Println(IsNumber("1.5e-10"))
+	fmt.Println(IsNumber("abc"))
+	fmt.Println(IsNumber(""))
+
+	// Output:
+	// true
+	// true
+	// true
+	// false
+	// false
+}
+
+// TestIsDigitsOnly 测试 IsDigitsOnly 函数
+// 测试场景：纯数字、包含字母、空字符串、特殊字符、混合内容、边界条件
+func TestIsDigitsOnly(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"纯数字", "12345", true},
+		{"纯数字零", "0", true},
+		{"单数字", "7", true},
+		{"包含字母", "123abc", false},
+		{"包含空格", "123 456", false},
+		{"空字符串", "", false},
+		{"特殊字符", "123!456", false},
+		{"负号", "-123", false},
+		{"小数点", "12.34", false},
+		{"字母开头", "a12345", false},
+		{"字母结尾", "12345a", false},
+		{"中文数字", "123四56", false},
+		{"Unicode数字", "١٢٣", false}, // Arabic numerals
+		{"大数字", "99999999999999999999", true},
+		{"前导零", "000123", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsDigitsOnly(tt.input)
+			assert.Equal(t, tt.expected, result, "IsDigitsOnly(%q) = %v; want %v", tt.input, result, tt.expected)
+		})
+	}
+}
+
+// BenchmarkIsDigitsOnly 性能基准测试
+func BenchmarkIsDigitsOnly(b *testing.B) {
+	inputs := []string{
+		"12345",
+		"12345abc",
+		"",
+		"99999999999999999999",
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, input := range inputs {
+			IsDigitsOnly(input)
+		}
+	}
+}
