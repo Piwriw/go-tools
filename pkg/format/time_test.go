@@ -524,6 +524,216 @@ func TestTimeParsedFormat(t *testing.T) {
 	}
 }
 
+func TestIsSameDay(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+
+	t.Run("同一天返回true", func(t *testing.T) {
+		t1 := time.Date(2026, time.April, 1, 1, 2, 3, 0, loc)
+		t2 := time.Date(2026, time.April, 1, 23, 59, 59, 0, loc)
+
+		assert.True(t, IsSameDay(t1, t2))
+	})
+
+	t.Run("不同天返回false", func(t *testing.T) {
+		t1 := time.Date(2026, time.April, 1, 23, 59, 59, 0, loc)
+		t2 := time.Date(2026, time.April, 2, 0, 0, 0, 0, loc)
+
+		assert.False(t, IsSameDay(t1, t2))
+	})
+}
+
+func TestIsToday(t *testing.T) {
+	now := time.Now()
+
+	t.Run("今天返回true", func(t *testing.T) {
+		today := time.Date(now.Year(), now.Month(), now.Day(), 8, 0, 0, 0, now.Location())
+		assert.True(t, IsToday(today))
+	})
+
+	t.Run("非今天返回false", func(t *testing.T) {
+		yesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 23, 59, 59, 0, now.Location())
+		assert.False(t, IsToday(yesterday))
+	})
+}
+
+func TestIsWeekend(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+
+	t.Run("周六返回true", func(t *testing.T) {
+		tm := time.Date(2026, time.April, 4, 12, 0, 0, 0, loc)
+		assert.True(t, IsWeekend(tm))
+	})
+
+	t.Run("周日返回true", func(t *testing.T) {
+		tm := time.Date(2026, time.April, 5, 12, 0, 0, 0, loc)
+		assert.True(t, IsWeekend(tm))
+	})
+
+	t.Run("工作日返回false", func(t *testing.T) {
+		tm := time.Date(2026, time.April, 1, 12, 0, 0, 0, loc)
+		assert.False(t, IsWeekend(tm))
+	})
+}
+
+func TestStartOfDay(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	tm := time.Date(2026, time.April, 1, 14, 30, 45, 123456789, loc)
+
+	result := StartOfDay(tm)
+
+	assert.Equal(t, time.Date(2026, time.April, 1, 0, 0, 0, 0, loc), result)
+}
+
+func TestEndOfDay(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	tm := time.Date(2026, time.April, 1, 14, 30, 45, 123456789, loc)
+
+	result := EndOfDay(tm)
+
+	assert.Equal(t, time.Date(2026, time.April, 1, 23, 59, 59, 999999999, loc), result)
+}
+
+func TestStartOfMonth(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	tm := time.Date(2026, time.April, 15, 14, 30, 45, 123456789, loc)
+
+	result := StartOfMonth(tm)
+
+	assert.Equal(t, time.Date(2026, time.April, 1, 0, 0, 0, 0, loc), result)
+}
+
+func TestEndOfMonth(t *testing.T) {
+	t.Run("30天月份", func(t *testing.T) {
+		loc := time.FixedZone("UTC+8", 8*60*60)
+		tm := time.Date(2026, time.April, 15, 14, 30, 45, 123456789, loc)
+
+		result := EndOfMonth(tm)
+
+		assert.Equal(t, time.Date(2026, time.April, 30, 23, 59, 59, 999999999, loc), result)
+	})
+
+	t.Run("闰年二月", func(t *testing.T) {
+		loc := time.FixedZone("UTC+8", 8*60*60)
+		tm := time.Date(2024, time.February, 15, 14, 30, 45, 123456789, loc)
+
+		result := EndOfMonth(tm)
+
+		assert.Equal(t, time.Date(2024, time.February, 29, 23, 59, 59, 999999999, loc), result)
+	})
+}
+
+func TestBetween(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	start := time.Date(2026, time.April, 1, 0, 0, 0, 0, loc)
+	end := time.Date(2026, time.April, 30, 23, 59, 59, 999999999, loc)
+
+	t.Run("命中开始边界返回true", func(t *testing.T) {
+		target := start
+		assert.True(t, Between(start, end, target))
+	})
+
+	t.Run("命中结束边界返回true", func(t *testing.T) {
+		target := end
+		assert.True(t, Between(start, end, target))
+	})
+
+	t.Run("区间内部返回true", func(t *testing.T) {
+		target := time.Date(2026, time.April, 15, 12, 0, 0, 0, loc)
+		assert.True(t, Between(start, end, target))
+	})
+
+	t.Run("早于开始返回false", func(t *testing.T) {
+		target := start.Add(-time.Nanosecond)
+		assert.False(t, Between(start, end, target))
+	})
+
+	t.Run("晚于结束返回false", func(t *testing.T) {
+		target := end.Add(time.Nanosecond)
+		assert.False(t, Between(start, end, target))
+	})
+}
+
+func TestStartOfWeek(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+
+	t.Run("周三返回本周周一零点", func(t *testing.T) {
+		tm := time.Date(2026, time.April, 1, 14, 30, 45, 123456789, loc)
+		result := StartOfWeek(tm)
+		assert.Equal(t, time.Date(2026, time.March, 30, 0, 0, 0, 0, loc), result)
+	})
+
+	t.Run("周一返回当天零点", func(t *testing.T) {
+		tm := time.Date(2026, time.March, 30, 14, 30, 45, 123456789, loc)
+		result := StartOfWeek(tm)
+		assert.Equal(t, time.Date(2026, time.March, 30, 0, 0, 0, 0, loc), result)
+	})
+
+	t.Run("周日返回上一个周一零点", func(t *testing.T) {
+		tm := time.Date(2026, time.April, 5, 14, 30, 45, 123456789, loc)
+		result := StartOfWeek(tm)
+		assert.Equal(t, time.Date(2026, time.March, 30, 0, 0, 0, 0, loc), result)
+	})
+}
+
+func TestEndOfWeek(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	tm := time.Date(2026, time.April, 1, 14, 30, 45, 123456789, loc)
+
+	result := EndOfWeek(tm)
+
+	assert.Equal(t, time.Date(2026, time.April, 5, 23, 59, 59, 999999999, loc), result)
+}
+
+func TestDaysBetween(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+
+	t.Run("跨自然日返回1", func(t *testing.T) {
+		start := time.Date(2026, time.April, 1, 23, 0, 0, 0, loc)
+		end := time.Date(2026, time.April, 2, 1, 0, 0, 0, loc)
+		assert.Equal(t, 1, DaysBetween(start, end))
+	})
+
+	t.Run("同一天返回0", func(t *testing.T) {
+		start := time.Date(2026, time.April, 1, 8, 0, 0, 0, loc)
+		end := time.Date(2026, time.April, 1, 20, 0, 0, 0, loc)
+		assert.Equal(t, 0, DaysBetween(start, end))
+	})
+
+	t.Run("反向日期返回负数", func(t *testing.T) {
+		start := time.Date(2026, time.April, 3, 8, 0, 0, 0, loc)
+		end := time.Date(2026, time.April, 1, 20, 0, 0, 0, loc)
+		assert.Equal(t, -2, DaysBetween(start, end))
+	})
+}
+
+func TestStartOfYear(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	tm := time.Date(2026, time.April, 1, 14, 30, 45, 123456789, loc)
+
+	result := StartOfYear(tm)
+
+	assert.Equal(t, time.Date(2026, time.January, 1, 0, 0, 0, 0, loc), result)
+}
+
+func TestEndOfYear(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	tm := time.Date(2026, time.April, 1, 14, 30, 45, 123456789, loc)
+
+	result := EndOfYear(tm)
+
+	assert.Equal(t, time.Date(2026, time.December, 31, 23, 59, 59, 999999999, loc), result)
+}
+
+func TestIsZeroTime(t *testing.T) {
+	t.Run("零值时间返回true", func(t *testing.T) {
+		assert.True(t, IsZeroTime(time.Time{}))
+	})
+
+	t.Run("非零值时间返回false", func(t *testing.T) {
+		assert.False(t, IsZeroTime(time.Now()))
+	})
+}
+
 // TestTimeFunctions_Parallel 并发安全测试_时间函数
 func TestTimeFunctions_Parallel(t *testing.T) {
 	t.Run("ParseCSTTime并发测试", func(t *testing.T) {
