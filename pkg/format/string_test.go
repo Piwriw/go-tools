@@ -375,7 +375,7 @@ func TestToString(t *testing.T) {
 		{
 			name:     "指针_指向int",
 			input:    func() *int { i := 123; return &i }(),
-			expected: "unknown type: *int", // 当前实现对基本类型指针支持不完善
+			expected: "", // 当前 ToString 失败时返回空字符串
 		},
 		{
 			name:     "指针_指向结构体",
@@ -392,7 +392,7 @@ func TestToString(t *testing.T) {
 		{
 			name:     "未知类型_函数",
 			input:    func() {},
-			expected: "unknown type: func()",
+			expected: "", // 当前 ToString 失败时返回空字符串
 		},
 	}
 

@@ -312,34 +312,34 @@ func TestToFloat64(t *testing.T) {
 			input:       []int{1, 2, 3},
 			expected:    0,
 			wantErr:     true,
-			errContains: "unsupported type",
+			errContains: "cannot convert []int to float64",
 		},
 		{
 			name:        "不支持_map",
 			input:       map[string]int{"key": 1},
 			expected:    0,
 			wantErr:     true,
-			errContains: "unsupported type",
+			errContains: "cannot convert map[string]int to float64",
 		},
 		{
 			name:        "不支持_结构体",
 			input:       struct{ Name string }{"test"},
 			expected:    0,
 			wantErr:     true,
-			errContains: "unsupported type",
+			errContains: "cannot convert struct { Name string } to float64",
 		},
 		{
 			name:        "不支持_函数",
 			input:       func() {},
 			expected:    0,
 			wantErr:     true,
-			errContains: "unsupported type",
+			errContains: "cannot convert func() to float64",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ToFloat64(tt.input)
+			result, err := MustToFloat64(tt.input)
 
 			if tt.wantErr {
 				require.Error(t, err, "预期发生错误")
@@ -374,7 +374,7 @@ func TestToFloat64_Parallel(t *testing.T) {
 
 			// 并发调用100次，确保没有数据竞争
 			for i := 0; i < 100; i++ {
-				result, err := ToFloat64(tt.input)
+				result, err := MustToFloat64(tt.input)
 				require.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
 			}
@@ -387,13 +387,13 @@ func TestToFloat64_EdgeCases(t *testing.T) {
 	t.Run("uint64精度边界", func(t *testing.T) {
 		// 测试float64能精确表示的最大整数边界
 		maxExactFloat64 := uint64(1<<53 - 1) // 9007199254740991
-		result, err := ToFloat64(maxExactFloat64)
+		result, err := MustToFloat64(maxExactFloat64)
 		require.NoError(t, err)
 		assert.Equal(t, float64(maxExactFloat64), result)
 
 		// 超出边界
 		tooLarge := uint64(1 << 53) // 9007199254740992
-		result, err = ToFloat64(tooLarge)
+		result, err = MustToFloat64(tooLarge)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "value too large")
 	})
@@ -401,7 +401,7 @@ func TestToFloat64_EdgeCases(t *testing.T) {
 	t.Run("浮点数精度", func(t *testing.T) {
 		// 测试浮点数精度保留
 		val := float64(123.45678901234567)
-		result, err := ToFloat64(val)
+		result, err := MustToFloat64(val)
 		require.NoError(t, err)
 		assert.InDelta(t, val, result, 1e-9)
 	})
@@ -417,7 +417,7 @@ func TestToFloat64_EdgeCases(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
-			result, err := ToFloat64(tc.input)
+			result, err := MustToFloat64(tc.input)
 			require.NoError(t, err)
 			assert.InDelta(t, tc.expected, result, 1e-9)
 		}
@@ -466,7 +466,7 @@ func BenchmarkToFloat64(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, _ = ToFloat64(tt.input)
+				_, _ = MustToFloat64(tt.input)
 			}
 		})
 	}
@@ -477,7 +477,7 @@ func BenchmarkToFloat64_Parallel(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, _ = ToFloat64(float64(123.456))
+			_, _ = MustToFloat64(float64(123.456))
 		}
 	})
 }
@@ -498,16 +498,16 @@ func ExampleFloat64ToPercentFloat() {
 // ExampleToFloat64 示例代码_ToFloat64
 func ExampleToFloat64() {
 	// 各种类型转换为float64
-	val1, _ := ToFloat64(int(123))
+	val1 := ToFloat64(int(123))
 	fmt.Printf("%.2f\n", val1)
 
-	val2, _ := ToFloat64(float32(45.67))
+	val2 := ToFloat64(float32(45.67))
 	fmt.Printf("%.2f\n", val2)
 
-	val3, _ := ToFloat64("123.456")
+	val3 := ToFloat64("123.456")
 	fmt.Printf("%.3f\n", val3)
 
-	val4, _ := ToFloat64(true)
+	val4 := ToFloat64(true)
 	fmt.Printf("%.0f\n", val4)
 
 	// Output:

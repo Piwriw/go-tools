@@ -103,3 +103,98 @@ func TestToInt(t *testing.T) {
 		})
 	}
 }
+
+func TestMustToInt(t *testing.T) {
+	t.Run("转换成功", func(t *testing.T) {
+		result, err := MustToInt("56")
+		assert.NoError(t, err)
+		assert.Equal(t, 56, result)
+	})
+
+	t.Run("转换失败返回错误", func(t *testing.T) {
+		result, err := MustToInt("12.3")
+		assert.Error(t, err)
+		assert.Equal(t, 0, result)
+	})
+}
+
+func TestToFloat64WithDefault(t *testing.T) {
+	t.Run("转换成功", func(t *testing.T) {
+		result := ToFloat64("12.5")
+		assert.Equal(t, 12.5, result)
+	})
+
+	t.Run("转换失败使用默认值", func(t *testing.T) {
+		result := ToFloat64("abc", 3.14)
+		assert.Equal(t, 3.14, result)
+	})
+}
+
+func TestMustToFloat64(t *testing.T) {
+	// keep unique from existing number_test.go symbols
+	t.Run("转换成功", func(t *testing.T) {
+		result, err := MustToFloat64(json.Number("12.5"))
+		assert.NoError(t, err)
+		assert.Equal(t, 12.5, result)
+	})
+
+	t.Run("转换失败返回错误", func(t *testing.T) {
+		result, err := MustToFloat64("abc")
+		assert.Error(t, err)
+		assert.Equal(t, 0.0, result)
+	})
+}
+
+func TestToStringWithDefault(t *testing.T) {
+	t.Run("转换成功", func(t *testing.T) {
+		result := ToString(123)
+		assert.Equal(t, "123", result)
+	})
+
+	t.Run("转换失败使用默认值", func(t *testing.T) {
+		result := ToString(func() {}, "fallback")
+		assert.Equal(t, "fallback", result)
+	})
+}
+
+func TestMustToString(t *testing.T) {
+	// keep unique from existing string_test.go symbols
+	t.Run("转换成功", func(t *testing.T) {
+		result, err := MustToString(true)
+		assert.NoError(t, err)
+		assert.Equal(t, "true", result)
+	})
+
+	t.Run("转换失败返回错误", func(t *testing.T) {
+		result, err := MustToString(func() {})
+		assert.Error(t, err)
+		assert.Equal(t, "", result)
+	})
+}
+
+func TestToBoolWithDefault(t *testing.T) {
+	t.Run("转换成功", func(t *testing.T) {
+		result := ToBool("true")
+		assert.Equal(t, true, result)
+	})
+
+	t.Run("转换失败使用默认值", func(t *testing.T) {
+		result := ToBool("abc", true)
+		assert.Equal(t, true, result)
+	})
+}
+
+func TestMustToBool(t *testing.T) {
+	t.Run("转换成功", func(t *testing.T) {
+		result, err := MustToBool(1)
+		assert.NoError(t, err)
+		assert.Equal(t, true, result)
+	})
+
+	t.Run("转换失败返回错误", func(t *testing.T) {
+		result, err := MustToBool("abc")
+		assert.Error(t, err)
+		assert.Equal(t, false, result)
+	})
+}
+
