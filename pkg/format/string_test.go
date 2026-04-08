@@ -537,15 +537,15 @@ func ExampleConvertMapKeysToUpper() {
 	fmt.Println(result)
 }
 
-// ExampleCovertToUpperSingle 示例代码_CovertToUpperSingle
-func ExampleCovertToUpperSingle() {
+// ExampleConvertToUpperSingle 示例代码_ConvertToUpperSingle
+func ExampleConvertToUpperSingle() {
 	result := ConvertToUpperSingle("hello world")
 	// Output: HELLO WORLD
 	fmt.Println(result)
 }
 
-// ExampleCovertToUpperMultiple 示例代码_CovertToUpperMultiple
-func ExampleCovertToUpperMultiple() {
+// ExampleConvertToUpperMultiple 示例代码_ConvertToUpperMultiple
+func ExampleConvertToUpperMultiple() {
 	result := ConvertToUpperMultiple("hello", "world", "test")
 	// Output: [HELLO WORLD TEST]
 	fmt.Println(result)
