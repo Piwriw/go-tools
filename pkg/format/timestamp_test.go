@@ -512,3 +512,175 @@ func TestTimeStampToFormatIn(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Current Timestamp
+// ============================================================================
+
+func TestNowTimeStamp(t *testing.T) {
+	before := nowFunc()
+
+	tests := []struct {
+		name string
+		unit TimeStampUnit
+	}{
+		{"second", TimeStampUnitSecond},
+		{"millisecond", TimeStampUnitMillisecond},
+		{"microsecond", TimeStampUnitMicrosecond},
+		{"nanosecond", TimeStampUnitNanosecond},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NowTimeStamp(tt.unit)
+			assert.NoError(t, err)
+			assert.True(t, got > 0, "timestamp should be positive")
+
+			// should be after "before"
+			beforeTs, _ := timeToTimeStamp(before, tt.unit)
+			assert.True(t, got >= beforeTs, "should be >= before timestamp")
+		})
+	}
+
+	t.Run("invalid unit", func(t *testing.T) {
+		_, err := NowTimeStamp(TimeStampUnit("invalid"))
+		assert.Error(t, err)
+	})
+}
+
+func TestNowTimeStampSecond(t *testing.T) {
+	got := NowTimeStampSecond()
+	assert.True(t, got > 0)
+	assert.Equal(t, nowFunc().Unix(), got)
+}
+
+func TestNowTimeStampMillisecond(t *testing.T) {
+	got := NowTimeStampMillisecond()
+	assert.True(t, got > 0)
+	assert.Equal(t, nowFunc().UnixMilli(), got)
+}
+
+// ============================================================================
+// DateTimeToTimeStamp
+// ============================================================================
+
+func TestDateTimeToTimeStamp(t *testing.T) {
+	tests := []struct {
+		name       string
+		datetime   string
+		layout     string
+		unit       TimeStampUnit
+		timezone   string
+		want       int64
+		wantErr    bool
+	}{
+		{
+			name:     "shanghai second",
+			datetime: "2024-01-01 08:00:00",
+			layout:   time.DateTime,
+			unit:     TimeStampUnitSecond,
+			timezone: "",
+			want:     1704067200, // 2024-01-01 00:00:00 UTC = 08:00 Shanghai
+		},
+		{
+			name:     "UTC second",
+			datetime: "2024-01-01 00:00:00",
+			layout:   time.DateTime,
+			unit:     TimeStampUnitSecond,
+			timezone: "UTC",
+			want:     1704067200,
+		},
+		{
+			name:     "UTC millisecond",
+			datetime: "2024-01-01 00:00:00",
+			layout:   time.DateTime,
+			unit:     TimeStampUnitMillisecond,
+			timezone: "UTC",
+			want:     1704067200 * 1000,
+		},
+		{
+			name:     "invalid datetime",
+			datetime: "not-a-date",
+			layout:   time.DateTime,
+			unit:     TimeStampUnitSecond,
+			timezone: "UTC",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid timezone",
+			datetime: "2024-01-01 00:00:00",
+			layout:   time.DateTime,
+			unit:     TimeStampUnitSecond,
+			timezone: "Invalid/Zone",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := DateTimeToTimeStamp(tt.datetime, tt.layout, tt.unit, tt.timezone)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ============================================================================
+// DetectTimeStampUnit
+// ============================================================================
+
+func TestDetectTimeStampUnit(t *testing.T) {
+	tests := []struct {
+		name      string
+		timestamp int64
+		want      TimeStampUnit
+	}{
+		{"second", 1704067200, TimeStampUnitSecond},
+		{"millisecond", 1704067200123, TimeStampUnitMillisecond},
+		{"microsecond", 1704067200123456, TimeStampUnitMicrosecond},
+		{"nanosecond", 1704067200123456789, TimeStampUnitNanosecond},
+		{"zero", 0, TimeStampUnitSecond},
+		{"negative second", -1704067200, TimeStampUnitSecond},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DetectTimeStampUnit(tt.timestamp)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ============================================================================
+// AutoTimeStampToTime
+// ============================================================================
+
+func TestAutoTimeStampToTime(t *testing.T) {
+	tests := []struct {
+		name      string
+		timestamp int64
+		wantYear  int
+		wantMonth time.Month
+		wantDay   int
+	}{
+		{"second", 1704067200, 2024, time.January, 1},
+		{"millisecond", 1704067200123, 2024, time.January, 1},
+		{"microsecond", 1704067200123456, 2024, time.January, 1},
+		{"nanosecond", 1704067200123456789, 2024, time.January, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := AutoTimeStampToTime(tt.timestamp)
+			assert.NoError(t, err)
+			assert.Equal(t, "Asia/Shanghai", got.Location().String())
+			assert.Equal(t, tt.wantYear, got.Year())
+			assert.Equal(t, tt.wantMonth, got.Month())
+			assert.Equal(t, tt.wantDay, got.Day())
+		})
+	}
+}

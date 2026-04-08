@@ -567,3 +567,252 @@ func ExampleToString() {
 	// true
 	// null
 }
+
+// ============================================================================
+// IsBlank / DefaultIfEmpty
+// ============================================================================
+
+func TestIsBlank(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{"empty", "", true},
+		{"spaces", "   ", true},
+		{"tabs", "\t\t", true},
+		{"newlines", "\n\r", true},
+		{"mixed whitespace", " \t\n ", true},
+		{"non-blank", "hello", false},
+		{"spaces with content", " a ", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsBlank(tt.input))
+		})
+	}
+}
+
+func TestDefaultIfEmpty(t *testing.T) {
+	assert.Equal(t, "default", DefaultIfEmpty("", "default"))
+	assert.Equal(t, "hello", DefaultIfEmpty("hello", "default"))
+	assert.Equal(t, "default", DefaultIfEmpty("", "default"))
+	assert.Equal(t, "a", DefaultIfEmpty("a", "default"))
+}
+
+// ============================================================================
+// Truncate / Substring
+// ============================================================================
+
+func TestTruncate(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		maxLen int
+		suffix string
+		want   string
+	}{
+		{"short enough", "hello", 10, "...", "hello"},
+		{"exact length", "hello", 5, "...", "hello"},
+		{"truncate", "hello world", 8, "...", "hello..."},
+		{"very small maxLen", "hello", 2, "...", ".."},
+		{"empty input", "", 5, "...", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, Truncate(tt.input, tt.maxLen, tt.suffix))
+		})
+	}
+}
+
+func TestSubstring(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		start int
+		end   int
+		want  string
+	}{
+		{"basic", "hello", 1, 4, "ell"},
+		{"chinese", "你好世界", 1, 3, "好世"},
+		{"start out of range", "hello", -1, 3, "hel"},
+		{"end out of range", "hello", 2, 100, "llo"},
+		{"start >= end", "hello", 3, 2, ""},
+		{"empty string", "", 0, 5, ""},
+		{"full range", "abc", 0, 3, "abc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, Substring(tt.input, tt.start, tt.end))
+		})
+	}
+}
+
+// ============================================================================
+// Case Conversion
+// ============================================================================
+
+func TestToCamelCase(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"snake_case", "user_name", "userName"},
+		{"kebab-case", "user-name", "userName"},
+		{"multiple underscores", "first_name_last_name", "firstNameLastName"},
+		{"already camel", "userName", "userName"},
+		{"single word", "name", "name"},
+		{"empty", "", ""},
+		{"PascalCase input", "UserName", "UserName"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ToCamelCase(tt.input))
+		})
+	}
+}
+
+func TestToSnakeCase(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"camelCase", "userName", "user_name"},
+		{"PascalCase", "UserName", "user_name"},
+		{"multiple caps", "firstNameLastName", "first_name_last_name"},
+		{"already snake", "user_name", "user_name"},
+		{"single word", "name", "name"},
+		{"empty", "", ""},
+		{"acronym", "HTMLParser", "h_t_m_l_parser"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ToSnakeCase(tt.input))
+		})
+	}
+}
+
+func TestToKebabCase(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"camelCase", "userName", "user-name"},
+		{"PascalCase", "UserName", "user-name"},
+		{"already kebab", "user-name", "user-name"},
+		{"empty", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ToKebabCase(tt.input))
+		})
+	}
+}
+
+// ============================================================================
+// Masking
+// ============================================================================
+
+func TestMaskString(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		keepLen int
+		mask    rune
+		want    string
+	}{
+		{"normal", "13812345678", 3, '*', "138*****678"},
+		{"short string", "abc", 2, '*', "***"},
+		{"exact keepLen*2", "abcde", 2, '*', "ab*de"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, MaskString(tt.input, tt.keepLen, tt.mask))
+		})
+	}
+}
+
+func TestMaskPhone(t *testing.T) {
+	assert.Equal(t, "138*****678", MaskPhone("13812345678"))
+	assert.Equal(t, "*****", MaskPhone("13456"))
+}
+
+func TestMaskEmail(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"normal", "test@example.com", "t***@example.com"},
+		{"short local", "a@b.com", "a@b.com"},
+		{"no at", "invalid-email", "invalid-email"},
+		{"long local", "admin@company.org", "a****@company.org"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, MaskEmail(tt.input))
+		})
+	}
+}
+
+// ============================================================================
+// Padding
+// ============================================================================
+
+func TestPadLeft(t *testing.T) {
+	assert.Equal(t, "00123", PadLeft("123", '0', 5))
+	assert.Equal(t, "abc", PadLeft("abc", '0', 2)) // already long enough
+	assert.Equal(t, "  abc", PadLeft("abc", ' ', 5))
+}
+
+func TestPadRight(t *testing.T) {
+	assert.Equal(t, "12300", PadRight("123", '0', 5))
+	assert.Equal(t, "abc", PadRight("abc", '0', 2))
+	assert.Equal(t, "abc  ", PadRight("abc", ' ', 5))
+}
+
+// ============================================================================
+// Reverse / RemoveSpaces
+// ============================================================================
+
+func TestReverse(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"basic", "hello", "olleh"},
+		{"chinese", "你好世界", "界世好你"},
+		{"empty", "", ""},
+		{"single", "a", "a"},
+		{"palindrome", "aba", "aba"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, Reverse(tt.input))
+		})
+	}
+}
+
+func TestRemoveSpaces(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"spaces", "a b c", "abc"},
+		{"tabs and newlines", "a\tb\nc", "abc"},
+		{"no spaces", "abc", "abc"},
+		{"all spaces", "  \t\n ", ""},
+		{"empty", "", ""},
+		{"mixed", "h e l l o", "hello"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, RemoveSpaces(tt.input))
+		})
+	}
+}

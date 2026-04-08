@@ -104,3 +104,121 @@ func TimeStampToTime(timestamp int64, unit TimeStampUnit) (time.Time, error) {
 func TimeToTimeStamp(t time.Time, unit TimeStampUnit) (int64, error) {
 	return timeToTimeStamp(t, unit)
 }
+
+// ============================================================================
+// Current Timestamp
+// ============================================================================
+
+// NowTimeStamp 返回当前时间的时间戳，按指定单位。
+func NowTimeStamp(unit TimeStampUnit) (int64, error) {
+	return timeToTimeStamp(nowFunc(), unit)
+}
+
+// NowTimeStampSecond 返回当前时间的秒级时间戳。
+func NowTimeStampSecond() int64 {
+	return nowFunc().Unix()
+}
+
+// NowTimeStampMillisecond 返回当前时间的毫秒级时间戳。
+func NowTimeStampMillisecond() int64 {
+	return nowFunc().UnixMilli()
+}
+
+// ============================================================================
+// Timestamp → Formatted String
+// ============================================================================
+
+// TimeStampToDateTime 将时间戳转为 "2006-01-02 15:04:05" 格式字符串（上海时区）。
+func TimeStampToDateTime(timestamp int64, unit TimeStampUnit) (string, error) {
+	t, err := toShanghaiTime(timestamp, unit)
+	if err != nil {
+		return "", err
+	}
+	return t.Format(time.DateTime), nil
+}
+
+// TimeStampToFormat 将时间戳按指定 layout 格式化（上海时区）。
+func TimeStampToFormat(timestamp int64, unit TimeStampUnit, layout string) (string, error) {
+	t, err := toShanghaiTime(timestamp, unit)
+	if err != nil {
+		return "", err
+	}
+	return t.Format(layout), nil
+}
+
+// TimeStampToDateTimeIn 将时间戳转为 "2006-01-02 15:04:05" 格式字符串（指定时区）。
+func TimeStampToDateTimeIn(timestamp int64, unit TimeStampUnit, timezone string) (string, error) {
+	t, err := timeStampToTime(timestamp, unit)
+	if err != nil {
+		return "", err
+	}
+	loc, err := loadLocationOrDefault(timezone)
+	if err != nil {
+		return "", err
+	}
+	return t.In(loc).Format(time.DateTime), nil
+}
+
+// TimeStampToFormatIn 将时间戳按指定 layout 格式化（指定时区）。
+func TimeStampToFormatIn(timestamp int64, unit TimeStampUnit, layout string, timezone string) (string, error) {
+	t, err := timeStampToTime(timestamp, unit)
+	if err != nil {
+		return "", err
+	}
+	loc, err := loadLocationOrDefault(timezone)
+	if err != nil {
+		return "", err
+	}
+	return t.In(loc).Format(layout), nil
+}
+
+// ============================================================================
+// Formatted String → Timestamp
+// ============================================================================
+
+// DateTimeToTimeStamp 将日期时间字符串解析后转为指定单位的时间戳。
+// layout 为 Go 标准时间格式，timezone 为时区（空字符串默认上海时区）。
+func DateTimeToTimeStamp(datetimeStr, layout string, unit TimeStampUnit, timezone string) (int64, error) {
+	loc, err := loadLocationOrDefault(timezone)
+	if err != nil {
+		return 0, err
+	}
+	t, err := time.ParseInLocation(layout, datetimeStr, loc)
+	if err != nil {
+		return 0, err
+	}
+	return timeToTimeStamp(t, unit)
+}
+
+// ============================================================================
+// Unit Detection
+// ============================================================================
+
+// DetectTimeStampUnit 根据时间戳数量级自动推断单位。
+// 推断规则：
+//   - < 1e10          → 秒（second）
+//   - < 1e13          → 毫秒（millisecond）
+//   - < 1e16          → 微秒（microsecond）
+//   - 其他            → 纳秒（nanosecond）
+func DetectTimeStampUnit(timestamp int64) TimeStampUnit {
+	abs := timestamp
+	if abs < 0 {
+		abs = -abs
+	}
+	switch {
+	case abs < 1e10:
+		return TimeStampUnitSecond
+	case abs < 1e13:
+		return TimeStampUnitMillisecond
+	case abs < 1e16:
+		return TimeStampUnitMicrosecond
+	default:
+		return TimeStampUnitNanosecond
+	}
+}
+
+// AutoTimeStampToTime 自动检测时间戳单位并转换为 time.Time（上海时区）。
+func AutoTimeStampToTime(timestamp int64) (time.Time, error) {
+	unit := DetectTimeStampUnit(timestamp)
+	return toShanghaiTime(timestamp, unit)
+}
