@@ -198,3 +198,107 @@ func TestMustToBool(t *testing.T) {
 	})
 }
 
+// ============================================================================
+// ToMapStringAny
+// ============================================================================
+
+func TestMustToMapStringAny(t *testing.T) {
+	type user struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+
+	tests := []struct {
+		name    string
+		input   any
+		want    map[string]any
+		wantErr bool
+	}{
+		{
+			name:  "map[string]any 直接返回",
+			input: map[string]any{"key": "value"},
+			want:  map[string]any{"key": "value"},
+		},
+		{
+			name:  "map[string]string",
+			input: map[string]string{"name": "Tom"},
+			want:  map[string]any{"name": "Tom"},
+		},
+		{
+			name:  "map[string]int",
+			input: map[string]int{"count": 10},
+			want:  map[string]any{"count": 10},
+		},
+		{
+			name:  "struct 通过 JSON 转换",
+			input: user{Name: "Alice", Age: 30},
+			want:  map[string]any{"name": "Alice", "age": float64(30)},
+		},
+		{
+			name:  "指向 struct 的指针",
+			input: &user{Name: "Bob", Age: 25},
+			want:  map[string]any{"name": "Bob", "age": float64(25)},
+		},
+		{
+			name:  "JSON 字符串",
+			input: `{"hello":"world"}`,
+			want:  map[string]any{"hello": "world"},
+		},
+		{
+			name:  "JSON []byte",
+			input: []byte(`{"a":"b"}`),
+			want:  map[string]any{"a": "b"},
+		},
+		{
+			name:    "nil",
+			input:   nil,
+			wantErr: true,
+		},
+		{
+			name:    "nil 指针",
+			input:   (*user)(nil),
+			wantErr: true,
+		},
+		{
+			name:    "无效 JSON 字符串",
+			input:   "not json",
+			wantErr: true,
+		},
+		{
+			name:    "不支持的类型",
+			input:   123,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MustToMapStringAny(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestToMapStringAny(t *testing.T) {
+	t.Run("转换成功", func(t *testing.T) {
+		result := ToMapStringAny(map[string]any{"key": "val"})
+		assert.Equal(t, map[string]any{"key": "val"}, result)
+	})
+
+	t.Run("转换失败返回 nil", func(t *testing.T) {
+		result := ToMapStringAny(123)
+		assert.Nil(t, result)
+	})
+
+	t.Run("转换失败使用默认值", func(t *testing.T) {
+		fallback := map[string]any{"default": true}
+		result := ToMapStringAny(123, fallback)
+		assert.Equal(t, fallback, result)
+	})
+}
+

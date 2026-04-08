@@ -368,3 +368,91 @@ func MustToBool(value any) (bool, error) {
 	}
 	return false, fmt.Errorf("cannot convert %T to bool", value)
 }
+
+// ============================================================================
+// ToMapStringAny
+// ============================================================================
+
+// ToMapStringAny 将任意值转换为 map[string]any。
+// 支持的类型：
+//   - map[string]any：直接返回
+//   - map[string]T（其他值类型）：逐键拷贝
+//   - struct / 指向 struct 的指针：通过 JSON 序列化反序列化转换
+//   - []byte / string：尝试 JSON 解析
+// 转换失败时返回 defaults[0]，未提供默认值时返回 nil。
+func ToMapStringAny(value any, defaults ...map[string]any) map[string]any {
+	result, err := MustToMapStringAny(value)
+	if err == nil {
+		return result
+	}
+	if len(defaults) > 0 {
+		return defaults[0]
+	}
+	return nil
+}
+
+// MustToMapStringAny 将任意值转换为 map[string]any。
+// 转换失败时返回 error。
+func MustToMapStringAny(value any) (map[string]any, error) {
+	if value == nil {
+		return nil, fmt.Errorf("cannot convert nil to map[string]any")
+	}
+
+	// 快速路径：已经是目标类型
+	if m, ok := value.(map[string]any); ok {
+		return m, nil
+	}
+
+	v := reflect.ValueOf(value)
+
+	// 解引用指针
+	for v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return nil, fmt.Errorf("cannot convert nil pointer to map[string]any")
+		}
+		v = v.Elem()
+	}
+
+	// map[string]T（值类型非 any）
+	if v.Kind() == reflect.Map && v.Type().Key().Kind() == reflect.String {
+		result := make(map[string]any, v.Len())
+		iter := v.MapRange()
+		for iter.Next() {
+			result[iter.Key().String()] = iter.Value().Interface()
+		}
+		return result, nil
+	}
+
+	// struct：通过 JSON 中转
+	if v.Kind() == reflect.Struct {
+		return structToMap(value)
+	}
+
+	// []byte / string：尝试 JSON 解析
+	switch raw := value.(type) {
+	case []byte:
+		return jsonToMap(raw)
+	case string:
+		return jsonToMap([]byte(raw))
+	}
+
+	return nil, fmt.Errorf("cannot convert %T to map[string]any", value)
+}
+
+// structToMap 通过 JSON 序列化/反序列化将 struct 转为 map[string]any。
+func structToMap(v any) (map[string]any, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("cannot convert %T to map[string]any: %w", v, err)
+	}
+	return jsonToMap(data)
+}
+
+// jsonToMap 将 JSON 字节解析为 map[string]any。
+func jsonToMap(data []byte) (map[string]any, error) {
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("cannot parse JSON to map[string]any: %w", err)
+	}
+	return result, nil
+}
