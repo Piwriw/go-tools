@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"mime/multipart"
 	"net"
@@ -21,8 +22,9 @@ func init() {
 }
 
 const (
-	defaultConnectTimeout = 300 * time.Second
-	defaultContentType    = JSON
+	defaultConnectTimeout    = 30 * time.Second
+	defaultContentType       = JSON
+	defaultResponseTimeout   = 30 * time.Second
 )
 
 type ContentType string
@@ -85,15 +87,15 @@ func NewHTTPClient(opts ...Options) *Client {
 			Timeout: defaultConnectTimeout,
 			Transport: &http.Transport{
 				DialContext: (&net.Dialer{
-					Timeout: 300 * time.Second,
+					Timeout: 10 * time.Second,
 				}).DialContext,
-				DisableKeepAlives:     true,
-				MaxIdleConnsPerHost:   5,
-				MaxIdleConns:          5,
-				IdleConnTimeout:       5 * time.Second,
-				TLSHandshakeTimeout:   5 * time.Second,
-				ResponseHeaderTimeout: 300 * time.Second,
-				ExpectContinueTimeout: 5 * time.Second,
+				DisableKeepAlives:     false,
+				MaxIdleConnsPerHost:   10,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: defaultResponseTimeout,
+				ExpectContinueTimeout: 1 * time.Second,
 			},
 		},
 	}
@@ -246,151 +248,82 @@ func WithProxyConnectHeader(header http.Header) Options {
 	}
 }
 
+// WithAuthorization 设置默认的 Authorization 头
+func WithAuthorization(auth string) Options {
+	return func(c *Client) {
+		c.authorization = auth
+	}
+}
+
 func (h *Client) JSON() *Client {
 	h.contentType = JSON
 	return h
 }
 
 func (h *Client) Post(url string, data []byte) ([]byte, error) {
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(data))
+	return h.doRequest(http.MethodPost, url, data, h.authorization)
+}
+
+func (h *Client) doRequest(method, url string, data []byte, auth string) ([]byte, error) {
+	var body io.Reader
+	if data != nil {
+		body = bytes.NewBuffer(data)
+	}
+	request, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
-	if h.contentType == "" {
-		h.contentType = defaultContentType
+	contentType := h.contentType
+	if contentType == "" {
+		contentType = defaultContentType
 	}
-	request.Header.Set("Content-Type", string(h.contentType))
+	request.Header.Set("Content-Type", string(contentType))
+	if auth != "" {
+		request.Header.Set("Authorization", auth)
+	}
 
 	res, err := h.client.Do(request)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
-	// 读取响应
-	body, err := io.ReadAll(res.Body)
+
+	responseBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
-	return body, nil
+	return responseBody, nil
 }
 
 // Get 发送 GET 请求，返回响应体
 func (h *Client) Get(url string) ([]byte, error) {
-	request, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	if h.contentType == "" {
-		h.contentType = defaultContentType
-	}
-	request.Header.Set("Content-Type", string(h.contentType))
-
-	res, err := h.client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	// 读取响应
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
+	return h.doRequest(http.MethodGet, url, nil, h.authorization)
 }
 
 // GetWithParams 发送 GET 请求，携带查询参数，返回响应体
 func (h *Client) GetWithParams(baseURL string, params map[string]string) ([]byte, error) {
-	// 解析基础 URL
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	// 添加查询参数
 	q := u.Query()
 	for key, value := range params {
 		q.Set(key, value)
 	}
 	u.RawQuery = q.Encode()
 
-	// 创建请求
-	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if h.contentType == "" {
-		h.contentType = defaultContentType
-	}
-	request.Header.Set("Content-Type", string(h.contentType))
-
-	if h.authorization != "" {
-		request.Header.Set("Authorization", h.authorization)
-	}
-
-	// 发送请求
-	res, err := h.client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	// 读取响应
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
+	return h.doRequest(http.MethodGet, u.String(), nil, h.authorization)
 }
 
 // Put 发送 PUT 请求，携带 data 作为请求体
 func (h *Client) Put(url string, data []byte) ([]byte, error) {
-	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(data))
-	if err != nil {
-		return nil, err
-	}
-	if h.contentType == "" {
-		h.contentType = defaultContentType
-	}
-	request.Header.Set("Content-Type", string(h.contentType))
-
-	res, err := h.client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	// 读取响应
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
+	return h.doRequest(http.MethodPut, url, data, h.authorization)
 }
 
 // Delete 发送 DELETE 请求
 func (h *Client) Delete(url string) ([]byte, error) {
-	request, err := http.NewRequest(http.MethodDelete, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	if h.contentType == "" {
-		h.contentType = defaultContentType
-	}
-	request.Header.Set("Content-Type", string(h.contentType))
-
-	res, err := h.client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
+	return h.doRequest(http.MethodDelete, url, nil, h.authorization)
 }
 
 // GetWithHeaders 发送 GET 请求，带自定义请求头
@@ -538,4 +471,232 @@ func (h *Client) PostFile(url, fieldName, filePath string) ([]byte, error) {
 		return nil, err
 	}
 	return responseBody, nil
+}
+
+// GetCtx 发送 GET 请求，支持 context 控制请求生命周期
+func (h *Client) GetCtx(ctx context.Context, url string) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if h.contentType == "" {
+		h.contentType = defaultContentType
+	}
+	request.Header.Set("Content-Type", string(h.contentType))
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// PostCtx 发送 POST 请求，支持 context 控制请求生命周期
+func (h *Client) PostCtx(ctx context.Context, url string, data []byte) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	if h.contentType == "" {
+		h.contentType = defaultContentType
+	}
+	request.Header.Set("Content-Type", string(h.contentType))
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// PutCtx 发送 PUT 请求，支持 context 控制请求生命周期
+func (h *Client) PutCtx(ctx context.Context, url string, data []byte) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	if h.contentType == "" {
+		h.contentType = defaultContentType
+	}
+	request.Header.Set("Content-Type", string(h.contentType))
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// DeleteCtx 发送 DELETE 请求，支持 context 控制请求生命周期
+func (h *Client) DeleteCtx(ctx context.Context, url string) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if h.contentType == "" {
+		h.contentType = defaultContentType
+	}
+	request.Header.Set("Content-Type", string(h.contentType))
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// GetWithParamsCtx 发送 GET 请求，携带查询参数，支持 context
+func (h *Client) GetWithParamsCtx(ctx context.Context, baseURL string, params map[string]string) ([]byte, error) {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	for key, value := range params {
+		q.Set(key, value)
+	}
+	u.RawQuery = q.Encode()
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if h.contentType == "" {
+		h.contentType = defaultContentType
+	}
+	request.Header.Set("Content-Type", string(h.contentType))
+
+	if h.authorization != "" {
+		request.Header.Set("Authorization", h.authorization)
+	}
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// GetWithHeadersCtx 发送 GET 请求，带自定义请求头，支持 context
+func (h *Client) GetWithHeadersCtx(ctx context.Context, url string, headers map[string]string) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range headers {
+		request.Header.Set(key, value)
+	}
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// PostWithHeadersCtx 发送 POST 请求，带自定义请求头，支持 context
+func (h *Client) PostWithHeadersCtx(ctx context.Context, url string, headers map[string]string, data []byte) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range headers {
+		request.Header.Set(key, value)
+	}
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// PutWithHeadersCtx 发送 PUT 请求，带自定义请求头，支持 context
+func (h *Client) PutWithHeadersCtx(ctx context.Context, url string, headers map[string]string, data []byte) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range headers {
+		request.Header.Set(key, value)
+	}
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// DeleteWithHeadersCtx 发送 DELETE 请求，带自定义请求头，支持 context
+func (h *Client) DeleteWithHeadersCtx(ctx context.Context, url string, headers map[string]string) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range headers {
+		request.Header.Set(key, value)
+	}
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
 }

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -1092,4 +1093,129 @@ func ExampleWithOptions() {
 	}
 
 	println(string(resp))
+}
+
+// TestClientGetCtx 测试带 context 的 GET 请求
+func TestClientGetCtx(t *testing.T) {
+	t.Run("With context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(`{"data":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.GetCtx(ctx, server.URL)
+		require.NoError(t, err)
+		assert.Equal(t, `{"data":"ok"}`, string(resp))
+	})
+
+	t.Run("With cancelled context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(100 * time.Millisecond)
+			w.Write([]byte(`{"data":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // 立即取消
+
+		client := NewHTTPClient()
+		_, err := client.GetCtx(ctx, server.URL)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "context canceled")
+	})
+
+	t.Run("With timeout context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(200 * time.Millisecond)
+			w.Write([]byte(`{"data":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		client := NewHTTPClient()
+		_, err := client.GetCtx(ctx, server.URL)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "context deadline exceeded")
+	})
+}
+
+// TestClientPostCtx 测试带 context 的 POST 请求
+func TestClientPostCtx(t *testing.T) {
+	t.Run("With context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			assert.Equal(t, []byte(`{"key":"value"}`), body)
+			w.Write([]byte(`{"success":true}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.PostCtx(ctx, server.URL, []byte(`{"key":"value"}`))
+		require.NoError(t, err)
+		assert.Equal(t, `{"success":true}`, string(resp))
+	})
+}
+
+// TestClientDeleteCtx 测试带 context 的 DELETE 请求
+func TestClientDeleteCtx(t *testing.T) {
+	t.Run("With context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodDelete, r.Method)
+			w.Write([]byte(`{"deleted":true}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.DeleteCtx(ctx, server.URL)
+		require.NoError(t, err)
+		assert.Equal(t, `{"deleted":true}`, string(resp))
+	})
+}
+
+// TestClientGetWithParamsCtx 测试带 context 和参数的 GET 请求
+func TestClientGetWithParamsCtx(t *testing.T) {
+	t.Run("With context and params", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "value1", r.URL.Query().Get("key1"))
+			assert.Equal(t, "value2", r.URL.Query().Get("key2"))
+			w.Write([]byte(`{"result":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.GetWithParamsCtx(ctx, server.URL, map[string]string{"key1": "value1", "key2": "value2"})
+		require.NoError(t, err)
+		assert.Equal(t, `{"result":"ok"}`, string(resp))
+	})
+}
+
+// TestClientGetWithHeadersCtx 测试带 context 和自定义请求头的 GET 请求
+func TestClientGetWithHeadersCtx(t *testing.T) {
+	t.Run("With context and headers", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "Bearer token123", r.Header.Get("Authorization"))
+			w.Write([]byte(`{"data":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.GetWithHeadersCtx(ctx, server.URL, map[string]string{"Authorization": "Bearer token123"})
+		require.NoError(t, err)
+		assert.Equal(t, `{"data":"ok"}`, string(resp))
+	})
 }
