@@ -4,39 +4,70 @@ import (
 	"strconv"
 )
 
-// IsNumeric 判断字符串 s 是否可以转换为 T 类型，并返回转换后的值
-func IsNumeric[T int | float64](s string) (bool, T) {
-	// 尝试转换为整数
-	if intValue, err := strconv.Atoi(s); err == nil {
-		return convertToType[T](intValue)
-	}
-
-	// 尝试转换为浮点数
-	if floatValue, err := strconv.ParseFloat(s, 64); err == nil {
-		return convertToType[T](floatValue)
-	}
-
-	// 转换失败，返回 false 和零值
-	var zero T
-	return false, zero
+// Numeric 支持的数字类型
+type Numeric interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
+		~float32 | ~float64
 }
 
-// convertToType 将值转换为 T 类型
-func convertToType[T int | float64](value any) (bool, T) {
+// IsNumeric 判断字符串 s 是否可以转换为 T 类型，并返回转换后的值
+// 各类型行为：
+//   - int/uint 系列：只接受整数格式
+//   - float32/float64：接受整数和浮点数格式
+func IsNumeric[T Numeric](s string) (bool, T) {
 	var zero T
+
 	switch any(zero).(type) {
 	case int:
-		// 如果 T 是 int 类型，直接转换 int 值
-		if v, ok := value.(int); ok {
-			return true, T(v)
+		if i, err := strconv.Atoi(s); err == nil {
+			return true, T(i)
+		}
+	case int8:
+		if i, err := strconv.ParseInt(s, 10, 8); err == nil {
+			return true, T(i)
+		}
+	case int16:
+		if i, err := strconv.ParseInt(s, 10, 16); err == nil {
+			return true, T(i)
+		}
+	case int32:
+		if i, err := strconv.ParseInt(s, 10, 32); err == nil {
+			return true, T(i)
+		}
+	case int64:
+		if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+			return true, T(i)
+		}
+	case uint:
+		if i, err := strconv.ParseUint(s, 10, 64); err == nil {
+			return true, T(i)
+		}
+	case uint8:
+		if i, err := strconv.ParseUint(s, 10, 8); err == nil {
+			return true, T(i)
+		}
+	case uint16:
+		if i, err := strconv.ParseUint(s, 10, 16); err == nil {
+			return true, T(i)
+		}
+	case uint32:
+		if i, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return true, T(i)
+		}
+	case uint64:
+		if i, err := strconv.ParseUint(s, 10, 64); err == nil {
+			return true, T(i)
+		}
+	case float32:
+		if f, err := strconv.ParseFloat(s, 32); err == nil {
+			return true, T(f)
 		}
 	case float64:
-		// 如果 T 是 float64 类型，转换 int 到 float64
-		if v, ok := value.(int); ok {
-			return true, T(float64(v)) // 将 int 转换为 float64
-		} else if v, ok := value.(float64); ok {
-			return true, T(v)
+		if f, err := strconv.ParseFloat(s, 64); err == nil {
+			return true, T(f)
 		}
 	}
+
 	return false, zero
 }
