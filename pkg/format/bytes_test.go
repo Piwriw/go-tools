@@ -590,3 +590,270 @@ func ExampleKBToGB() {
 	// 1
 	// 1.5
 }
+
+// --- 新增函数的测试 ---
+
+func TestBytesToKB(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected float64
+	}{
+		{name: "0字节", input: int(0), expected: 0},
+		{name: "1KB", input: int(1024), expected: 1},
+		{name: "1MB", input: int(1024 * 1024), expected: 1024},
+		{name: "512字节", input: int(512), expected: 0.5},
+		{name: "uint64", input: uint64(2048), expected: 2},
+		{name: "float64_1.5KB", input: float64(1536), expected: 1.5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			switch v := tt.input.(type) {
+			case int:
+				assert.InDelta(t, tt.expected, BytesToKB(v), 0.01)
+			case uint64:
+				assert.InDelta(t, tt.expected, BytesToKB(v), 0.01)
+			case float64:
+				assert.InDelta(t, tt.expected, BytesToKB(v), 0.01)
+			}
+		})
+	}
+}
+
+func TestBytesToTB(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected float64
+	}{
+		{name: "0字节", input: int(0), expected: 0},
+		{name: "1TB", input: uint64(1024 * 1024 * 1024 * 1024), expected: 1},
+		{name: "1.5TB", input: float64(1.5 * 1024 * 1024 * 1024 * 1024), expected: 1.5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			switch v := tt.input.(type) {
+			case int:
+				assert.InDelta(t, tt.expected, BytesToTB(v), 0.01)
+			case uint64:
+				assert.InDelta(t, tt.expected, BytesToTB(v), 0.01)
+			case float64:
+				assert.InDelta(t, tt.expected, BytesToTB(v), 0.01)
+			}
+		})
+	}
+}
+
+func TestMBToBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    float64
+		expected uint64
+	}{
+		{name: "0MB", input: 0, expected: 0},
+		{name: "1MB", input: 1, expected: 1024 * 1024},
+		{name: "1.5MB", input: 1.5, expected: uint64(1.5 * 1024 * 1024)},
+		{name: "100MB", input: 100, expected: 100 * 1024 * 1024},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, MBToBytes(tt.input))
+		})
+	}
+}
+
+func TestGBToBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    float64
+		expected uint64
+	}{
+		{name: "0GB", input: 0, expected: 0},
+		{name: "1GB", input: 1, expected: 1024 * 1024 * 1024},
+		{name: "2.5GB", input: 2.5, expected: uint64(2.5 * 1024 * 1024 * 1024)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, GBToBytes(tt.input))
+		})
+	}
+}
+
+func TestTBToBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    float64
+		expected uint64
+	}{
+		{name: "0TB", input: 0, expected: 0},
+		{name: "1TB", input: 1, expected: 1024 * 1024 * 1024 * 1024},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, TBToBytes(tt.input))
+		})
+	}
+}
+
+func TestHumanReadableBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected string
+	}{
+		{name: "0字节", input: int(0), expected: "0 B"},
+		{name: "500字节", input: int(500), expected: "500 B"},
+		{name: "1KB", input: int(1024), expected: "1.00 KB"},
+		{name: "1MB", input: int(1024 * 1024), expected: "1.00 MB"},
+		{name: "1GB", input: uint64(1024 * 1024 * 1024), expected: "1.00 GB"},
+		{name: "1TB", input: uint64(1024 * 1024 * 1024 * 1024), expected: "1.00 TB"},
+		{name: "1PB", input: uint64(1024 * 1024 * 1024 * 1024 * 1024), expected: "1.00 PB"},
+		{name: "1.5MB", input: float64(1.5 * 1024 * 1024), expected: "1.50 MB"},
+		{name: "512KB", input: int(512 * 1024), expected: "512.00 KB"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			switch v := tt.input.(type) {
+			case int:
+				assert.Equal(t, tt.expected, HumanReadableBytes(v))
+			case uint64:
+				assert.Equal(t, tt.expected, HumanReadableBytes(v))
+			case float64:
+				assert.Equal(t, tt.expected, HumanReadableBytes(v))
+			}
+		})
+	}
+}
+
+func TestParseHumanReadableBytes(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    uint64
+		expectError bool
+	}{
+		{name: "纯字节", input: "1024", expected: 1024},
+		{name: "带B单位", input: "1024B", expected: 1024},
+		{name: "带B单位和空格", input: "1024 B", expected: 1024},
+		{name: "1KB", input: "1KB", expected: 1024},
+		{name: "1 KB带空格", input: "1 KB", expected: 1024},
+		{name: "1.5MB", input: "1.5MB", expected: uint64(1.5 * 1024 * 1024)},
+		{name: "2 GB", input: "2 GB", expected: 2 * 1024 * 1024 * 1024},
+		{name: "1TB小写", input: "1tb", expected: 1024 * 1024 * 1024 * 1024},
+		{name: "1PB", input: "1PB", expected: 1024 * 1024 * 1024 * 1024 * 1024},
+		{name: "简写K", input: "1K", expected: 1024},
+		{name: "简写M", input: "1M", expected: 1024 * 1024},
+		{name: "简写G", input: "1G", expected: 1024 * 1024 * 1024},
+		{name: "空字符串", input: "", expectError: true},
+		{name: "无效单位", input: "1XX", expectError: true},
+		{name: "无数字", input: "abc", expectError: true},
+		{name: "负数", input: "-1MB", expectError: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ParseHumanReadableBytes(tt.input)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
+
+// 新增函数的基准测试
+func BenchmarkBytesToKB(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = BytesToKB(1024 * 1024)
+	}
+}
+
+func BenchmarkBytesToTB(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = BytesToTB(uint64(1024 * 1024 * 1024 * 1024))
+	}
+}
+
+func BenchmarkMBToBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = MBToBytes(1.5)
+	}
+}
+
+func BenchmarkGBToBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = GBToBytes(2.5)
+	}
+}
+
+func BenchmarkHumanReadableBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = HumanReadableBytes(uint64(1024 * 1024 * 1024))
+	}
+}
+
+func BenchmarkParseHumanReadableBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _ = ParseHumanReadableBytes("1.5 GB")
+	}
+}
+
+// 新增函数的示例代码
+func ExampleBytesToKB() {
+	fmt.Println(BytesToKB(1024))        // 1
+	fmt.Println(BytesToKB(512))         // 0.5
+	fmt.Println(BytesToKB(1024 * 1024)) // 1024
+	// Output:
+	// 1
+	// 0.5
+	// 1024
+}
+
+func ExampleBytesToTB() {
+	fmt.Println(BytesToTB(uint64(1024 * 1024 * 1024 * 1024))) // 1
+	// Output:
+	// 1
+}
+
+func ExampleMBToBytes() {
+	fmt.Println(MBToBytes(1))   // 1048576
+	fmt.Println(MBToBytes(1.5)) // 1572864
+	// Output:
+	// 1048576
+	// 1572864
+}
+
+func ExampleGBToBytes() {
+	fmt.Println(GBToBytes(1)) // 1073741824
+	// Output:
+	// 1073741824
+}
+
+func ExampleTBToBytes() {
+	fmt.Println(TBToBytes(1)) // 1099511627776
+	// Output:
+	// 1099511627776
+}
+
+func ExampleHumanReadableBytes() {
+	fmt.Println(HumanReadableBytes(int(0)))                     // 0 B
+	fmt.Println(HumanReadableBytes(int(1024)))                  // 1.00 KB
+	fmt.Println(HumanReadableBytes(int(1024 * 1024)))           // 1.00 MB
+	fmt.Println(HumanReadableBytes(uint64(1024 * 1024 * 1024))) // 1.00 GB
+	// Output:
+	// 0 B
+	// 1.00 KB
+	// 1.00 MB
+	// 1.00 GB
+}
+
+func ExampleParseHumanReadableBytes() {
+	v, _ := ParseHumanReadableBytes("1.5GB")
+	fmt.Println(v)
+	v, _ = ParseHumanReadableBytes("1024 KB")
+	fmt.Println(v)
+	// Output:
+	// 1610612736
+	// 1048576
+}
