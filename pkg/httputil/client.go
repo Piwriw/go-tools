@@ -369,6 +369,122 @@ func (h *Client) Put(url string, data []byte) ([]byte, error) {
 	return body, nil
 }
 
+// Delete 发送 DELETE 请求
+func (h *Client) Delete(url string) ([]byte, error) {
+	request, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if h.contentType == "" {
+		h.contentType = defaultContentType
+	}
+	request.Header.Set("Content-Type", string(h.contentType))
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// GetWithHeaders 发送 GET 请求，带自定义请求头
+func (h *Client) GetWithHeaders(url string, headers map[string]string) ([]byte, error) {
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range headers {
+		request.Header.Set(key, value)
+	}
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// PostWithHeaders 发送 POST 请求，带自定义请求头
+func (h *Client) PostWithHeaders(url string, headers map[string]string, data []byte) ([]byte, error) {
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range headers {
+		request.Header.Set(key, value)
+	}
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// PutWithHeaders 发送 PUT 请求，带自定义请求头
+func (h *Client) PutWithHeaders(url string, headers map[string]string, data []byte) ([]byte, error) {
+	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range headers {
+		request.Header.Set(key, value)
+	}
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// DeleteWithHeaders 发送 DELETE 请求，带自定义请求头
+func (h *Client) DeleteWithHeaders(url string, headers map[string]string) ([]byte, error) {
+	request, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range headers {
+		request.Header.Set(key, value)
+	}
+
+	res, err := h.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
 // PostFile sends a file in a POST request using multipart/form-data
 func (h *Client) PostFile(url, fieldName, filePath string) ([]byte, error) {
 	// 创建一个缓冲区和 multipart writer
