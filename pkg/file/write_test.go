@@ -7,9 +7,13 @@ import (
 	"testing"
 )
 
+// TestWriteStringToDir 测试写入目录应该失败
 func TestWriteStringToDir(t *testing.T) {
-	if err := WriteStringToFile("/Users/joohwan/GolandProjects/go-tools/pkg/file", "hello world", nil); err != nil {
-		t.Errorf("WriteStringToFile failed: %v", err)
+	tempDir := t.TempDir()
+	// 尝试写入目录应该失败
+	err := WriteStringToFile(tempDir, "hello world", nil)
+	if err == nil {
+		t.Errorf("期望写入目录应该失败，但没有错误")
 	}
 }
 
