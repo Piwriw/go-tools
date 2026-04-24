@@ -350,3 +350,198 @@ func ExampleGetFilePermissions() {
 	}
 	println(perms) // 输出: rw-r--r--
 }
+
+// --- Tests for new permission functions ---
+
+func TestHasPermission(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "test.txt")
+	_ = os.WriteFile(filePath, []byte("data"), 0644)
+
+	t.Run("owner read bit set", func(t *testing.T) {
+		ok, err := HasPermission(filePath, 0400)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("owner exec bit not set", func(t *testing.T) {
+		ok, err := HasPermission(filePath, 0100)
+		assert.NoError(t, err)
+		assert.False(t, ok)
+	})
+
+	t.Run("non-existent file returns error", func(t *testing.T) {
+		_, err := HasPermission(filepath.Join(tempDir, "noexist"), 0400)
+		assert.Error(t, err)
+	})
+}
+
+func TestAddPermission(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "test.txt")
+	_ = os.WriteFile(filePath, []byte("data"), 0644)
+
+	err := AddPermission(filePath, 0111)
+	assert.NoError(t, err)
+
+	info, _ := os.Stat(filePath)
+	assert.Equal(t, os.FileMode(0755), info.Mode().Perm())
+}
+
+func TestRemovePermission(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "test.txt")
+	_ = os.WriteFile(filePath, []byte("data"), 0755)
+
+	err := RemovePermission(filePath, 0111)
+	assert.NoError(t, err)
+
+	info, _ := os.Stat(filePath)
+	assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+}
+
+func TestIsReadable(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "test.txt")
+
+	_ = os.WriteFile(filePath, []byte("data"), 0644)
+	assert.True(t, IsReadable(filePath))
+
+	_ = os.Chmod(filePath, 0200)
+	assert.False(t, IsReadable(filePath))
+}
+
+func TestIsWritable(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "test.txt")
+
+	_ = os.WriteFile(filePath, []byte("data"), 0644)
+	assert.True(t, IsWritable(filePath))
+
+	_ = os.Chmod(filePath, 0444)
+	assert.False(t, IsWritable(filePath))
+}
+
+func TestSetPermissionsRecursive(t *testing.T) {
+	tempDir := t.TempDir()
+	// Create structure: dir/sub/file.txt, dir/sub/nested/
+	subDir := filepath.Join(tempDir, "sub")
+	nestedDir := filepath.Join(subDir, "nested")
+	_ = os.MkdirAll(nestedDir, 0755)
+	_ = os.WriteFile(filepath.Join(subDir, "file.txt"), []byte("data"), 0644)
+
+	t.Run("apply to files only", func(t *testing.T) {
+		err := SetPermissionsRecursive(tempDir, 0600, "file")
+		assert.NoError(t, err)
+
+		// File should be 0600
+		fileInfo, _ := os.Stat(filepath.Join(subDir, "file.txt"))
+		assert.Equal(t, os.FileMode(0600), fileInfo.Mode().Perm())
+
+		// Dirs should remain unchanged (0755)
+		dirInfo, _ := os.Stat(subDir)
+		assert.Equal(t, os.FileMode(0755), dirInfo.Mode().Perm())
+	})
+
+	t.Run("apply to dirs only", func(t *testing.T) {
+		err := SetPermissionsRecursive(tempDir, 0700, "dir")
+		assert.NoError(t, err)
+
+		dirInfo, _ := os.Stat(nestedDir)
+		assert.Equal(t, os.FileMode(0700), dirInfo.Mode().Perm())
+
+		// File should remain unchanged from previous test (0600)
+		fileInfo, _ := os.Stat(filepath.Join(subDir, "file.txt"))
+		assert.Equal(t, os.FileMode(0600), fileInfo.Mode().Perm())
+	})
+
+	t.Run("invalid applyTo returns error", func(t *testing.T) {
+		err := SetPermissionsRecursive(tempDir, 0644, "invalid")
+		assert.Error(t, err)
+	})
+}
+
+func TestSetDefaultPermissions(t *testing.T) {
+	tempDir := t.TempDir()
+	subDir := filepath.Join(tempDir, "sub")
+	_ = os.MkdirAll(subDir, 0777)
+	_ = os.WriteFile(filepath.Join(tempDir, "a.txt"), []byte("a"), 0777)
+	_ = os.WriteFile(filepath.Join(subDir, "b.txt"), []byte("b"), 0777)
+
+	err := SetDefaultPermissions(tempDir, 0644, 0755)
+	assert.NoError(t, err)
+
+	// Files should be 0644
+	fileInfo, _ := os.Stat(filepath.Join(tempDir, "a.txt"))
+	assert.Equal(t, os.FileMode(0644), fileInfo.Mode().Perm())
+
+	nestedFileInfo, _ := os.Stat(filepath.Join(subDir, "b.txt"))
+	assert.Equal(t, os.FileMode(0644), nestedFileInfo.Mode().Perm())
+
+	// Dirs should be 0755
+	dirInfo, _ := os.Stat(subDir)
+	assert.Equal(t, os.FileMode(0755), dirInfo.Mode().Perm())
+}
+
+func TestCopyPermissionsRecursive(t *testing.T) {
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+
+	// Create src structure with specific permissions
+	_ = os.MkdirAll(filepath.Join(srcDir, "sub"), 0755)
+	_ = os.WriteFile(filepath.Join(srcDir, "a.txt"), []byte("a"), 0644)
+	_ = os.WriteFile(filepath.Join(srcDir, "sub", "b.txt"), []byte("b"), 0755)
+
+	// Create dst structure with different permissions
+	_ = os.MkdirAll(filepath.Join(dstDir, "sub"), 0777)
+	_ = os.WriteFile(filepath.Join(dstDir, "a.txt"), []byte("a"), 0777)
+	_ = os.WriteFile(filepath.Join(dstDir, "sub", "b.txt"), []byte("b"), 0644)
+
+	err := CopyPermissionsRecursive(srcDir, dstDir)
+	assert.NoError(t, err)
+
+	// Verify dst permissions now match src
+	aInfo, _ := os.Stat(filepath.Join(dstDir, "a.txt"))
+	assert.Equal(t, os.FileMode(0644), aInfo.Mode().Perm())
+
+	bInfo, _ := os.Stat(filepath.Join(dstDir, "sub", "b.txt"))
+	assert.Equal(t, os.FileMode(0755), bInfo.Mode().Perm())
+}
+
+func TestAddPermissionRecursive(t *testing.T) {
+	tempDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tempDir, "sub"), 0755)
+	_ = os.WriteFile(filepath.Join(tempDir, "a.txt"), []byte("a"), 0644)
+	_ = os.WriteFile(filepath.Join(tempDir, "sub", "b.txt"), []byte("b"), 0644)
+
+	err := AddPermissionRecursive(tempDir, 0111, "file")
+	assert.NoError(t, err)
+
+	// Files should have +x
+	aInfo, _ := os.Stat(filepath.Join(tempDir, "a.txt"))
+	assert.Equal(t, os.FileMode(0755), aInfo.Mode().Perm())
+
+	bInfo, _ := os.Stat(filepath.Join(tempDir, "sub", "b.txt"))
+	assert.Equal(t, os.FileMode(0755), bInfo.Mode().Perm())
+
+	// Dirs should remain 0755
+	dirInfo, _ := os.Stat(filepath.Join(tempDir, "sub"))
+	assert.Equal(t, os.FileMode(0755), dirInfo.Mode().Perm())
+}
+
+func TestRemovePermissionRecursive(t *testing.T) {
+	tempDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tempDir, "sub"), 0755)
+	_ = os.WriteFile(filepath.Join(tempDir, "a.txt"), []byte("a"), 0755)
+
+	err := RemovePermissionRecursive(tempDir, 0111, "file")
+	assert.NoError(t, err)
+
+	// File should lose exec bits
+	aInfo, _ := os.Stat(filepath.Join(tempDir, "a.txt"))
+	assert.Equal(t, os.FileMode(0644), aInfo.Mode().Perm())
+
+	// Dir should remain 0755
+	dirInfo, _ := os.Stat(filepath.Join(tempDir, "sub"))
+	assert.Equal(t, os.FileMode(0755), dirInfo.Mode().Perm())
+}

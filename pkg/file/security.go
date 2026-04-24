@@ -277,3 +277,170 @@ func MakePrivate(path string) error {
 func MakePrivateExecutable(path string) error {
 	return os.Chmod(path, 0700)
 }
+
+// --- Permission bit operations ---
+
+// HasPermission checks whether a specific permission bit is set on a file.
+// Use os.FileMode bit masks like 0400 (owner read), 0200 (owner write), 0100 (owner exec),
+// 0040 (group read), 0004 (other read), etc.
+func HasPermission(path string, bit os.FileMode) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to get file info: %w", err)
+	}
+	return info.Mode().Perm()&bit != 0, nil
+}
+
+// AddPermission adds permission bits to a file (preserving existing bits).
+// Example: AddPermission("file.txt", 0111) adds execute for all.
+func AddPermission(path string, bits os.FileMode) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
+	}
+	return os.Chmod(path, info.Mode().Perm()|bits)
+}
+
+// RemovePermission removes permission bits from a file (preserving existing bits).
+// Example: RemovePermission("file.txt", 0222) removes all write bits.
+func RemovePermission(path string, bits os.FileMode) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
+	}
+	return os.Chmod(path, info.Mode().Perm()&^bits)
+}
+
+// --- Readable / Writable checks ---
+
+// IsReadable checks whether the owner has read permission.
+func IsReadable(path string) bool {
+	ok, err := HasPermission(path, 0400)
+	return err == nil && ok
+}
+
+// IsWritable checks whether the owner has write permission.
+func IsWritable(path string) bool {
+	ok, err := HasPermission(path, 0200)
+	return err == nil && ok
+}
+
+// --- Recursive operations ---
+
+// SetPermissionsRecursive applies a permission mode to all files and/or directories
+// under the given root path (inclusive).
+// applyTo controls what is affected: "file", "dir", or "all".
+func SetPermissionsRecursive(root string, mode os.FileMode, applyTo string) error {
+	validTargets := map[string]bool{"file": true, "dir": true, "all": true}
+	if !validTargets[applyTo] {
+		return fmt.Errorf("invalid applyTo value %q: must be \"file\", \"dir\", or \"all\"", applyTo)
+	}
+
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // skip inaccessible entries
+		}
+
+		shouldApply := applyTo == "all" ||
+			(applyTo == "file" && !info.IsDir()) ||
+			(applyTo == "dir" && info.IsDir())
+
+		if shouldApply {
+			if chErr := os.Chmod(path, mode); chErr != nil {
+				return fmt.Errorf("failed to chmod %s: %w", path, chErr)
+			}
+		}
+		return nil
+	})
+}
+
+// SetDefaultPermissions sets files under root to filePerm and directories to dirPerm.
+// This is the common "web-safe" pattern (0644 for files, 0755 for dirs).
+func SetDefaultPermissions(root string, filePerm, dirPerm os.FileMode) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if info.IsDir() {
+			return os.Chmod(path, dirPerm)
+		}
+		return os.Chmod(path, filePerm)
+	})
+}
+
+// CopyPermissionsRecursive copies file permissions from src to dst directory trees.
+// Files and directories are matched by their relative path under srcRoot/dstRoot.
+func CopyPermissionsRecursive(srcRoot, dstRoot string) error {
+	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		rel, err := filepath.Rel(srcRoot, srcPath)
+		if err != nil {
+			return nil
+		}
+		dstPath := filepath.Join(dstRoot, rel)
+
+		if !FileExists(dstPath) {
+			return nil // skip if dst counterpart doesn't exist
+		}
+
+		return os.Chmod(dstPath, info.Mode().Perm())
+	})
+}
+
+// AddPermissionRecursive adds permission bits to all files and/or directories
+// under the given root path. applyTo follows the same rules as SetPermissionsRecursive.
+func AddPermissionRecursive(root string, bits os.FileMode, applyTo string) error {
+	validTargets := map[string]bool{"file": true, "dir": true, "all": true}
+	if !validTargets[applyTo] {
+		return fmt.Errorf("invalid applyTo value %q: must be \"file\", \"dir\", or \"all\"", applyTo)
+	}
+
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		shouldApply := applyTo == "all" ||
+			(applyTo == "file" && !info.IsDir()) ||
+			(applyTo == "dir" && info.IsDir())
+
+		if shouldApply {
+			newMode := info.Mode().Perm() | bits
+			if chErr := os.Chmod(path, newMode); chErr != nil {
+				return fmt.Errorf("failed to chmod %s: %w", path, chErr)
+			}
+		}
+		return nil
+	})
+}
+
+// RemovePermissionRecursive removes permission bits from all files and/or directories
+// under the given root path. applyTo follows the same rules as SetPermissionsRecursive.
+func RemovePermissionRecursive(root string, bits os.FileMode, applyTo string) error {
+	validTargets := map[string]bool{"file": true, "dir": true, "all": true}
+	if !validTargets[applyTo] {
+		return fmt.Errorf("invalid applyTo value %q: must be \"file\", \"dir\", or \"all\"", applyTo)
+	}
+
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		shouldApply := applyTo == "all" ||
+			(applyTo == "file" && !info.IsDir()) ||
+			(applyTo == "dir" && info.IsDir())
+
+		if shouldApply {
+			newMode := info.Mode().Perm() &^ bits
+			if chErr := os.Chmod(path, newMode); chErr != nil {
+				return fmt.Errorf("failed to chmod %s: %w", path, chErr)
+			}
+		}
+		return nil
+	})
+}

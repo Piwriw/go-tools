@@ -538,3 +538,199 @@ func TestAtomicWriteToFileNoTempLeak(t *testing.T) {
 		}
 	}
 }
+
+// --- Tests for permission convenience writers ---
+
+func TestWritePrivateFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "secret.key")
+
+	err := WritePrivateFile(filePath, []byte("private data"))
+	if err != nil {
+		t.Fatalf("WritePrivateFile failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+	if string(content) != "private data" {
+		t.Errorf("expected 'private data', got '%s'", string(content))
+	}
+
+	info, _ := os.Stat(filePath)
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("expected perm 0600, got %04o", info.Mode().Perm())
+	}
+}
+
+func TestWritePrivateStringFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "token")
+
+	err := WritePrivateStringFile(filePath, "abc123")
+	if err != nil {
+		t.Fatalf("WritePrivateStringFile failed: %v", err)
+	}
+
+	content, _ := os.ReadFile(filePath)
+	if string(content) != "abc123" {
+		t.Errorf("expected 'abc123', got '%s'", string(content))
+	}
+
+	info, _ := os.Stat(filePath)
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("expected perm 0600, got %04o", info.Mode().Perm())
+	}
+}
+
+func TestWritePrivateFileCreatesPrivateDir(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "secrets", "nested", "key.pem")
+
+	err := WritePrivateFile(filePath, []byte("key"))
+	if err != nil {
+		t.Fatalf("WritePrivateFile with nested dir failed: %v", err)
+	}
+
+	// Parent dir should be 0700
+	dirInfo, _ := os.Stat(filepath.Join(tempDir, "secrets"))
+	if dirInfo.Mode().Perm() != 0700 {
+		t.Errorf("expected dir perm 0700, got %04o", dirInfo.Mode().Perm())
+	}
+}
+
+func TestWriteExecutableFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "run.sh")
+
+	err := WriteExecutableFile(filePath, []byte("#!/bin/sh\necho hi"))
+	if err != nil {
+		t.Fatalf("WriteExecutableFile failed: %v", err)
+	}
+
+	info, _ := os.Stat(filePath)
+	if info.Mode().Perm() != 0755 {
+		t.Errorf("expected perm 0755, got %04o", info.Mode().Perm())
+	}
+}
+
+func TestWriteSharedFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "shared.log")
+
+	err := WriteSharedFile(filePath, []byte("shared data"))
+	if err != nil {
+		t.Fatalf("WriteSharedFile failed: %v", err)
+	}
+
+	info, _ := os.Stat(filePath)
+	if info.Mode().Perm() != 0666 {
+		t.Errorf("expected perm 0666, got %04o", info.Mode().Perm())
+	}
+}
+
+func TestWriteSharedStringFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "notes.txt")
+
+	err := WriteSharedStringFile(filePath, "collaborative content")
+	if err != nil {
+		t.Fatalf("WriteSharedStringFile failed: %v", err)
+	}
+
+	content, _ := os.ReadFile(filePath)
+	if string(content) != "collaborative content" {
+		t.Errorf("expected 'collaborative content', got '%s'", string(content))
+	}
+}
+
+func TestWriteConfigFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "config.yaml")
+
+	err := WriteConfigFile(filePath, []byte("db_password: s3cret"))
+	if err != nil {
+		t.Fatalf("WriteConfigFile failed: %v", err)
+	}
+
+	content, _ := os.ReadFile(filePath)
+	if string(content) != "db_password: s3cret" {
+		t.Errorf("unexpected content: %s", string(content))
+	}
+
+	info, _ := os.Stat(filePath)
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("expected perm 0600, got %04o", info.Mode().Perm())
+	}
+}
+
+func TestWriteConfigStringFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "app.json")
+
+	err := WriteConfigStringFile(filePath, `{"secret": "value"}`)
+	if err != nil {
+		t.Fatalf("WriteConfigStringFile failed: %v", err)
+	}
+
+	info, _ := os.Stat(filePath)
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("expected perm 0600, got %04o", info.Mode().Perm())
+	}
+}
+
+func TestWriteConfigFileOverwrite(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "config.yml")
+
+	_ = WriteConfigFile(filePath, []byte("old"))
+	err := WriteConfigFile(filePath, []byte("new"))
+	if err != nil {
+		t.Fatalf("WriteConfigFile overwrite failed: %v", err)
+	}
+
+	content, _ := os.ReadFile(filePath)
+	if string(content) != "new" {
+		t.Errorf("expected 'new', got '%s'", string(content))
+	}
+}
+
+func TestAppendToLogFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "app.log")
+
+	err := AppendToLogFile(filePath, []byte("line1\n"))
+	if err != nil {
+		t.Fatalf("AppendToLogFile failed: %v", err)
+	}
+
+	err = AppendToLogFile(filePath, []byte("line2\n"))
+	if err != nil {
+		t.Fatalf("AppendToLogFile second call failed: %v", err)
+	}
+
+	content, _ := os.ReadFile(filePath)
+	expected := "line1\nline2\n"
+	if string(content) != expected {
+		t.Errorf("expected '%s', got '%s'", expected, string(content))
+	}
+
+	info, _ := os.Stat(filePath)
+	if info.Mode().Perm() != 0644 {
+		t.Errorf("expected perm 0644, got %04o", info.Mode().Perm())
+	}
+}
+
+func TestAppendLogString(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "syslog")
+
+	_ = AppendLogString(filePath, "msg1\n")
+	_ = AppendLogString(filePath, "msg2\n")
+
+	content, _ := os.ReadFile(filePath)
+	if string(content) != "msg1\nmsg2\n" {
+		t.Errorf("expected 'msg1\\nmsg2\\n', got '%s'", string(content))
+	}
+}
