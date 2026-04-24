@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -191,5 +192,349 @@ func TestWriteOptions(t *testing.T) {
 
 	if DefaultWriteOptions != expected {
 		t.Errorf("默认写入选项不匹配，期望 %+v，实际 %+v", expected, DefaultWriteOptions)
+	}
+}
+
+// --- Tests for new functions ---
+
+func TestAppendToFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "append.txt")
+
+	// Append to non-existent file (should create)
+	err := AppendToFile(filePath, []byte("hello"))
+	if err != nil {
+		t.Fatalf("AppendToFile failed: %v", err)
+	}
+
+	// Append to existing file
+	err = AppendToFile(filePath, []byte(" world"))
+	if err != nil {
+		t.Fatalf("AppendToFile failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+
+	if string(content) != "hello world" {
+		t.Errorf("expected 'hello world', got '%s'", string(content))
+	}
+}
+
+func TestAppendStringToFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "append_str.txt")
+
+	err := AppendStringToFile(filePath, "line1\n")
+	if err != nil {
+		t.Fatalf("AppendStringToFile failed: %v", err)
+	}
+
+	err = AppendStringToFile(filePath, "line2\n")
+	if err != nil {
+		t.Fatalf("AppendStringToFile failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+
+	expected := "line1\nline2\n"
+	if string(content) != expected {
+		t.Errorf("expected '%s', got '%s'", expected, string(content))
+	}
+}
+
+func TestWriteLinesToFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "lines.txt")
+
+	lines := []string{"alpha", "beta", "gamma"}
+	err := WriteLinesToFile(filePath, lines, nil)
+	if err != nil {
+		t.Fatalf("WriteLinesToFile failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+
+	expected := "alpha\nbeta\ngamma\n"
+	if string(content) != expected {
+		t.Errorf("expected '%s', got '%s'", expected, string(content))
+	}
+}
+
+func TestWriteLinesToFileEmpty(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "empty_lines.txt")
+
+	err := WriteLinesToFile(filePath, []string{}, nil)
+	if err != nil {
+		t.Fatalf("WriteLinesToFile with empty slice failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+
+	if len(content) != 0 {
+		t.Errorf("expected empty file, got '%s'", string(content))
+	}
+}
+
+func TestCopyFile(t *testing.T) {
+	tempDir := t.TempDir()
+	srcPath := filepath.Join(tempDir, "src.txt")
+	dstPath := filepath.Join(tempDir, "dst.txt")
+
+	// Create source file
+	content := []byte("copy me")
+	if err := os.WriteFile(srcPath, content, 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	err := CopyFile(srcPath, dstPath)
+	if err != nil {
+		t.Fatalf("CopyFile failed: %v", err)
+	}
+
+	// Verify content
+	dstContent, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("failed to read dst file: %v", err)
+	}
+	if string(dstContent) != string(content) {
+		t.Errorf("expected '%s', got '%s'", string(content), string(dstContent))
+	}
+
+	// Verify permissions
+	srcInfo, _ := os.Stat(srcPath)
+	dstInfo, _ := os.Stat(dstPath)
+	if srcInfo.Mode() != dstInfo.Mode() {
+		t.Errorf("permissions mismatch: src=%v, dst=%v", srcInfo.Mode(), dstInfo.Mode())
+	}
+}
+
+func TestCopyFileNestedDir(t *testing.T) {
+	tempDir := t.TempDir()
+	srcPath := filepath.Join(tempDir, "src.txt")
+	dstPath := filepath.Join(tempDir, "sub", "dir", "dst.txt")
+
+	if err := os.WriteFile(srcPath, []byte("nested"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	err := CopyFile(srcPath, dstPath)
+	if err != nil {
+		t.Fatalf("CopyFile to nested dir failed: %v", err)
+	}
+
+	content, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("failed to read dst file: %v", err)
+	}
+	if string(content) != "nested" {
+		t.Errorf("expected 'nested', got '%s'", string(content))
+	}
+}
+
+func TestCopyFileNotFound(t *testing.T) {
+	tempDir := t.TempDir()
+	err := CopyFile(filepath.Join(tempDir, "noexist.txt"), filepath.Join(tempDir, "dst.txt"))
+	if err == nil {
+		t.Error("expected error for non-existent source file")
+	}
+}
+
+func TestMoveFile(t *testing.T) {
+	tempDir := t.TempDir()
+	srcPath := filepath.Join(tempDir, "src.txt")
+	dstPath := filepath.Join(tempDir, "dst.txt")
+
+	if err := os.WriteFile(srcPath, []byte("move me"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	err := MoveFile(srcPath, dstPath)
+	if err != nil {
+		t.Fatalf("MoveFile failed: %v", err)
+	}
+
+	// Source should no longer exist
+	if _, err := os.Stat(srcPath); !os.IsNotExist(err) {
+		t.Error("source file should have been removed")
+	}
+
+	// Destination should have the content
+	content, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("failed to read dst file: %v", err)
+	}
+	if string(content) != "move me" {
+		t.Errorf("expected 'move me', got '%s'", string(content))
+	}
+}
+
+func TestMoveFileNotFound(t *testing.T) {
+	tempDir := t.TempDir()
+	err := MoveFile(filepath.Join(tempDir, "noexist.txt"), filepath.Join(tempDir, "dst.txt"))
+	if err == nil {
+		t.Error("expected error for non-existent source file")
+	}
+}
+
+func TestTouch(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "touch.txt")
+
+	// Touch non-existent file
+	err := Touch(filePath)
+	if err != nil {
+		t.Fatalf("Touch failed: %v", err)
+	}
+
+	// File should exist and be empty
+	info, err := os.Stat(filePath)
+	if err != nil {
+		t.Fatalf("file should exist: %v", err)
+	}
+	if info.Size() != 0 {
+		t.Errorf("expected empty file, got size %d", info.Size())
+	}
+
+	// Touch existing file should update mod time
+	modBefore := info.ModTime()
+	err = Touch(filePath)
+	if err != nil {
+		t.Fatalf("Touch (update) failed: %v", err)
+	}
+	info2, _ := os.Stat(filePath)
+	if !info2.ModTime().After(modBefore) {
+		t.Errorf("mod time should be updated: before=%v, after=%v", modBefore, info2.ModTime())
+	}
+}
+
+func TestTouchNestedDir(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "a", "b", "touch.txt")
+
+	err := Touch(filePath)
+	if err != nil {
+		t.Fatalf("Touch with nested dir failed: %v", err)
+	}
+
+	if !FileExists(filePath) {
+		t.Error("file should exist after Touch")
+	}
+}
+
+func TestTouchPreservesContent(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "existing.txt")
+
+	if err := os.WriteFile(filePath, []byte("important data"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	err := Touch(filePath)
+	if err != nil {
+		t.Fatalf("Touch failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+	if string(content) != "important data" {
+		t.Errorf("Touch should preserve existing content, got '%s'", string(content))
+	}
+}
+
+func TestAtomicWriteToFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "atomic.txt")
+
+	err := AtomicWriteToFile(filePath, []byte("atomic content"), 0644)
+	if err != nil {
+		t.Fatalf("AtomicWriteToFile failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+	if string(content) != "atomic content" {
+		t.Errorf("expected 'atomic content', got '%s'", string(content))
+	}
+}
+
+func TestAtomicWriteToFileOverwrite(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "atomic_overwrite.txt")
+
+	// Initial write
+	if err := AtomicWriteToFile(filePath, []byte("old"), 0644); err != nil {
+		t.Fatalf("initial write failed: %v", err)
+	}
+
+	// Overwrite atomically
+	if err := AtomicWriteToFile(filePath, []byte("new content"), 0644); err != nil {
+		t.Fatalf("overwrite failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+	if string(content) != "new content" {
+		t.Errorf("expected 'new content', got '%s'", string(content))
+	}
+}
+
+func TestAtomicWriteToFileNestedDir(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "sub", "atomic.txt")
+
+	err := AtomicWriteToFile(filePath, []byte("nested atomic"), 0600)
+	if err != nil {
+		t.Fatalf("AtomicWriteToFile with nested dir failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+	if string(content) != "nested atomic" {
+		t.Errorf("expected 'nested atomic', got '%s'", string(content))
+	}
+
+	// Verify permissions
+	info, _ := os.Stat(filePath)
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("expected perm 0600, got %04o", info.Mode().Perm())
+	}
+}
+
+func TestAtomicWriteToFileNoTempLeak(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "no_leak.txt")
+
+	_ = AtomicWriteToFile(filePath, []byte("ok"), 0644)
+
+	// No .tmp-* files should remain
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		t.Fatalf("failed to read dir: %v", err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".tmp-") {
+			t.Errorf("temp file leaked: %s", e.Name())
+		}
 	}
 }
