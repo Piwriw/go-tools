@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -572,6 +573,212 @@ func TestClientPostFileError(t *testing.T) {
 	}
 }
 
+// TestClientDelete 测试DELETE请求
+func TestClientDelete(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		wantErr    bool
+	}{
+		{
+			name:       "Successful DELETE",
+			statusCode: http.StatusOK,
+			wantErr:    false,
+		},
+		{
+			name:       "Not Found",
+			statusCode: http.StatusNotFound,
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodDelete, r.Method)
+				w.WriteHeader(tt.statusCode)
+				w.Write([]byte(`{"deleted":true}`))
+			}))
+			defer server.Close()
+
+			client := NewHTTPClient()
+			resp, err := client.Delete(server.URL)
+
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, `{"deleted":true}`, string(resp))
+			}
+		})
+	}
+}
+
+// TestClientDeleteWithHeaders 测试带请求头的DELETE请求
+func TestClientDeleteWithHeaders(t *testing.T) {
+	t.Run("With Authorization header", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodDelete, r.Method)
+			assert.Equal(t, "Bearer token123", r.Header.Get("Authorization"))
+			w.Write([]byte(`{"ok":true}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient()
+		resp, err := client.DeleteWithHeaders(server.URL, map[string]string{"Authorization": "Bearer token123"})
+		require.NoError(t, err)
+		assert.Equal(t, `{"ok":true}`, string(resp))
+	})
+
+	t.Run("With X-Request-ID header", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodDelete, r.Method)
+			assert.Equal(t, "abc123", r.Header.Get("X-Request-ID"))
+			w.Write([]byte(`{"ok":true}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient()
+		resp, err := client.DeleteWithHeaders(server.URL, map[string]string{"X-Request-ID": "abc123"})
+		require.NoError(t, err)
+		assert.Equal(t, `{"ok":true}`, string(resp))
+	})
+
+	t.Run("With multiple headers", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodDelete, r.Method)
+			assert.Equal(t, "Bearer token", r.Header.Get("Authorization"))
+			assert.Equal(t, "value", r.Header.Get("X-Custom"))
+			w.Write([]byte(`{"ok":true}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient()
+		resp, err := client.DeleteWithHeaders(server.URL, map[string]string{"Authorization": "Bearer token", "X-Custom": "value"})
+		require.NoError(t, err)
+		assert.Equal(t, `{"ok":true}`, string(resp))
+	})
+}
+
+// TestClientGetWithHeaders 测试带请求头的GET请求
+func TestClientGetWithHeaders(t *testing.T) {
+	tests := []struct {
+		name       string
+		headers    map[string]string
+		wantHeader string
+		wantErr    bool
+	}{
+		{
+			name:       "With Authorization header",
+			headers:    map[string]string{"Authorization": "Bearer token123"},
+			wantHeader: "Bearer token123",
+		},
+		{
+			name:       "With multiple headers",
+			headers:    map[string]string{"Authorization": "Basic xyz", "Accept": "application/json"},
+			wantHeader: "Basic xyz",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method)
+				assert.Equal(t, tt.wantHeader, r.Header.Get("Authorization"))
+				w.Write([]byte(`{"data":"ok"}`))
+			}))
+			defer server.Close()
+
+			client := NewHTTPClient()
+			resp, err := client.GetWithHeaders(server.URL, tt.headers)
+
+			require.NoError(t, err)
+			assert.Equal(t, `{"data":"ok"}`, string(resp))
+		})
+	}
+}
+
+// TestClientPostWithHeaders 测试带请求头的POST请求
+func TestClientPostWithHeaders(t *testing.T) {
+	t.Run("With Authorization", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "Bearer token", r.Header.Get("Authorization"))
+			body, _ := io.ReadAll(r.Body)
+			assert.Equal(t, []byte(`{"data":"test"}`), body)
+			w.Write([]byte(`{"success":true}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient()
+		resp, err := client.PostWithHeaders(server.URL, map[string]string{"Authorization": "Bearer token"}, []byte(`{"data":"test"}`))
+		require.NoError(t, err)
+		assert.Equal(t, `{"success":true}`, string(resp))
+	})
+
+	t.Run("With X-Request-ID header", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "req-123", r.Header.Get("X-Request-ID"))
+			body, _ := io.ReadAll(r.Body)
+			assert.Equal(t, []byte(`{"key":"value"}`), body)
+			w.Write([]byte(`{"success":true}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient()
+		resp, err := client.PostWithHeaders(server.URL, map[string]string{"X-Request-ID": "req-123"}, []byte(`{"key":"value"}`))
+		require.NoError(t, err)
+		assert.Equal(t, `{"success":true}`, string(resp))
+	})
+}
+
+// TestClientPutWithHeaders 测试带请求头的PUT请求
+func TestClientPutWithHeaders(t *testing.T) {
+	tests := []struct {
+		name       string
+		headers    map[string]string
+		wantHeader string
+		data       []byte
+		wantErr    bool
+	}{
+		{
+			name:       "With custom header",
+			headers:    map[string]string{"If-Match": "etag-123"},
+			wantHeader: "etag-123",
+			data:       []byte(`{"updated":true}`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPut, r.Method)
+				assert.Equal(t, tt.wantHeader, r.Header.Get("If-Match"))
+				w.Write([]byte(`{"success":true}`))
+			}))
+			defer server.Close()
+
+			client := NewHTTPClient()
+			resp, err := client.PutWithHeaders(server.URL, tt.headers, tt.data)
+
+			require.NoError(t, err)
+			assert.Equal(t, `{"success":true}`, string(resp))
+		})
+	}
+}
+
 // TestJSON 测试JSON方法
 // 功能：设置客户端的Content-Type为JSON
 func TestJSON(t *testing.T) {
@@ -886,4 +1093,129 @@ func ExampleWithOptions() {
 	}
 
 	println(string(resp))
+}
+
+// TestClientGetCtx 测试带 context 的 GET 请求
+func TestClientGetCtx(t *testing.T) {
+	t.Run("With context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(`{"data":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.GetCtx(ctx, server.URL)
+		require.NoError(t, err)
+		assert.Equal(t, `{"data":"ok"}`, string(resp))
+	})
+
+	t.Run("With cancelled context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(100 * time.Millisecond)
+			w.Write([]byte(`{"data":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // 立即取消
+
+		client := NewHTTPClient()
+		_, err := client.GetCtx(ctx, server.URL)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "context canceled")
+	})
+
+	t.Run("With timeout context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(200 * time.Millisecond)
+			w.Write([]byte(`{"data":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		client := NewHTTPClient()
+		_, err := client.GetCtx(ctx, server.URL)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "context deadline exceeded")
+	})
+}
+
+// TestClientPostCtx 测试带 context 的 POST 请求
+func TestClientPostCtx(t *testing.T) {
+	t.Run("With context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			assert.Equal(t, []byte(`{"key":"value"}`), body)
+			w.Write([]byte(`{"success":true}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.PostCtx(ctx, server.URL, []byte(`{"key":"value"}`))
+		require.NoError(t, err)
+		assert.Equal(t, `{"success":true}`, string(resp))
+	})
+}
+
+// TestClientDeleteCtx 测试带 context 的 DELETE 请求
+func TestClientDeleteCtx(t *testing.T) {
+	t.Run("With context", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodDelete, r.Method)
+			w.Write([]byte(`{"deleted":true}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.DeleteCtx(ctx, server.URL)
+		require.NoError(t, err)
+		assert.Equal(t, `{"deleted":true}`, string(resp))
+	})
+}
+
+// TestClientGetWithParamsCtx 测试带 context 和参数的 GET 请求
+func TestClientGetWithParamsCtx(t *testing.T) {
+	t.Run("With context and params", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "value1", r.URL.Query().Get("key1"))
+			assert.Equal(t, "value2", r.URL.Query().Get("key2"))
+			w.Write([]byte(`{"result":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.GetWithParamsCtx(ctx, server.URL, map[string]string{"key1": "value1", "key2": "value2"})
+		require.NoError(t, err)
+		assert.Equal(t, `{"result":"ok"}`, string(resp))
+	})
+}
+
+// TestClientGetWithHeadersCtx 测试带 context 和自定义请求头的 GET 请求
+func TestClientGetWithHeadersCtx(t *testing.T) {
+	t.Run("With context and headers", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "Bearer token123", r.Header.Get("Authorization"))
+			w.Write([]byte(`{"data":"ok"}`))
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		client := NewHTTPClient()
+		resp, err := client.GetWithHeadersCtx(ctx, server.URL, map[string]string{"Authorization": "Bearer token123"})
+		require.NoError(t, err)
+		assert.Equal(t, `{"data":"ok"}`, string(resp))
+	})
 }

@@ -9,7 +9,7 @@ import (
 
 	"github.com/prometheus/alertmanager/template"
 	"github.piwriw.go-tools/pkg/alertmanager/common"
-	"github.piwriw.go-tools/pkg/http"
+	"github.piwriw.go-tools/pkg/httputil"
 )
 
 // WechatAlert 微信告警策略

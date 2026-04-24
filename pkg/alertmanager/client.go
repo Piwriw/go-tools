@@ -11,7 +11,7 @@ import (
 	"github.piwriw.go-tools/pkg/alertmanager/lark"
 	"github.piwriw.go-tools/pkg/alertmanager/script"
 	"github.piwriw.go-tools/pkg/alertmanager/wechat"
-	"github.piwriw.go-tools/pkg/http"
+	"github.piwriw.go-tools/pkg/httputil"
 )
 
 type Option func(*AlertStrategyManager)
